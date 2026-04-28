@@ -12,7 +12,7 @@ import AdminRoute from "./components/AdminRoute";
 import { DbDataProvider } from "./context/DbDataContext";
 import { AuthProvider } from "./context/AuthContext";
 
-import './app.css';
+import './App.css';
 
 function App() {
   const [savedProfile, setSavedProfile] = useState(null);

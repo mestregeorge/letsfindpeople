@@ -1,0 +1,313 @@
+// ── userService.js ─────────────────────────────────────────────────────────────
+// All user-profile operations now go directly to Supabase (database + storage).
+// Sensitive operations that require the service-role key (ensure-user) or
+// Stripe secrets (checkout / portal) are delegated to Supabase Edge Functions.
+
+import { supabase } from "./supabaseClient";
+
+// ── Column mappings (mirror the server-side constants) ────────────────────────
+const YES_NO_COLS = {
+  visualArt:       "q_visual_art",
+  digitalArt:      "q_digital_art",
+  listenMusic:     "q_listen_music",
+  produceMusic:    "q_produce_music",
+  playInstruments: "q_play_instruments",
+  likePerforming:  "q_like_performing",
+  likeWriting:     "q_like_writing",
+  likeAnime:       "q_like_anime",
+  likeGames:       "q_like_games",
+  likeMemes:       "q_like_memes",
+  likeTech:        "q_like_tech",
+  likeProgramming: "q_like_programming",
+  likeAI:          "q_like_ai",
+  attendEducation: "q_attend_education",
+  goGym:           "q_go_gym",
+  practiceSports:  "q_practice_sports",
+  likeOutdoor:     "q_like_outdoor",
+  likeCars:        "q_like_cars",
+};
+
+const SKIP_COLS = {
+  movies:      "skip_movies",
+  tvShows:     "skip_tv_shows",
+  apps:        "skip_apps",
+  careers:     "skip_careers",
+  personality: "skip_personality",
+  hobbies:     "skip_hobbies",
+  sexuality:   "skip_sexuality",
+  food:        "skip_food",
+  places:      "skip_places",
+  animals:     "skip_animals",
+  roleModels:  "skip_role_models",
+  other:       "skip_other",
+};
+
+const YES_NO_COLS_SQL = Object.values(YES_NO_COLS).join(", ");
+const SKIP_COLS_SQL   = Object.values(SKIP_COLS).join(", ");
+
+// ── ensureUser ────────────────────────────────────────────────────────────────
+/**
+ * Ensures a user row exists in the DB for the given Supabase auth user.
+ * Delegates to the ensure-user Edge Function which uses the service-role key
+ * to check banned/deleted status and create the row atomically.
+ *
+ * The Edge Function extracts the UID and email from the caller's JWT, so the
+ */
+export async function ensureUser() {
+  const { data, error } = await supabase.functions.invoke("ensure-user", {
+    body: {},
+  });
+  if (error) throw new Error(error.message);
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
+// ── getUserProfile ────────────────────────────────────────────────────────────
+/**
+ * Fetches the full profile + keyword IDs for the currently authenticated user.
+ * Returns { profile, answers, skipped, keywordIds }.
+ * @param {string} supabaseUid
+ */
+export async function getUserProfile(supabaseUid) {
+  const { data: user, error: findErr } = await supabase
+    .from("users")
+    .select(
+      `id_user, first_name, last_name, date_of_birth, location,
+       phone_number, show_phone_number,
+       instagram, show_instagram,
+       tiktok, show_tiktok,
+       snapchat, show_snapchat,
+       discord, show_discord,
+       profile_url, is_deleted, is_banned, suspended_until, subscription_status, free_searches_remaining, id_type,
+       ${YES_NO_COLS_SQL}, ${SKIP_COLS_SQL}`
+    )
+    .eq("supabase_uid", supabaseUid)
+    .maybeSingle();
+
+  if (findErr) throw new Error(findErr.message);
+  if (!user)          throw new Error("User not found.");
+  if (user.is_deleted) throw new Error("ACCOUNT_DELETED");
+  if (user.is_banned) throw new Error("ACCOUNT_BANNED");
+  if (user.suspended_until && new Date(user.suspended_until).getTime() > Date.now()) {
+    throw new Error("ACCOUNT_SUSPENDED");
+  }
+
+  const { data: uk, error: ukErr } = await supabase
+    .from("user_keywords")
+    .select("id_keyword")
+    .eq("id_user", user.id_user);
+  if (ukErr) throw new Error(ukErr.message);
+
+  // Reconstruct yes/no answers: DB TRUE → "yes", FALSE → "no", NULL → null.
+  const answers = {};
+  for (const [key, col] of Object.entries(YES_NO_COLS)) {
+    const val = user[col];
+    answers[key] = val === true ? "yes" : val === false ? "no" : null;
+  }
+
+  // Reconstruct skip flags: TRUE → true, FALSE/NULL → false.
+  const skipped = {};
+  for (const [key, col] of Object.entries(SKIP_COLS)) {
+    skipped[key] = !!user[col];
+  }
+
+  return {
+    profile: {
+      firstName:          user.first_name          || "",
+      lastName:           user.last_name           || "",
+      dateOfBirth:        user.date_of_birth       || null,
+      location:           user.location            || "",
+      phoneNumber:        user.phone_number        || "",
+      showPhone:          !!user.show_phone_number,
+      instagram:          user.instagram           || "",
+      showInstagram:      !!user.show_instagram,
+      tiktok:             user.tiktok              || "",
+      showTiktok:         !!user.show_tiktok,
+      snapchat:           user.snapchat            || "",
+      showSnapchat:       !!user.show_snapchat,
+      discord:            user.discord             || "",
+      showDiscord:        !!user.show_discord,
+      // Append a fresh cache-busting timestamp so the browser always fetches
+      // the latest image on each session load (same storage path is reused).
+      profileUrl: user.profile_url
+        ? `${user.profile_url.split("?")[0]}?t=${Date.now()}`
+        : null,
+      subscriptionStatus: user.subscription_status || "free",
+      freeSearchesRemaining: user.free_searches_remaining ?? 3,
+      idType:             user.id_type || 1,
+    },
+    answers,
+    skipped,
+    keywordIds: (uk || []).map((row) => row.id_keyword),
+  };
+}
+
+// ── updateUserProfile ─────────────────────────────────────────────────────────
+/**
+ * Persists profile fields and keyword IDs to the DB.
+ * @param {string}   supabaseUid
+ * @param {object}   profile     — flat profile fields (same shape as Navbar passes)
+ * @param {number[]} keywordIds  — replaces existing keyword associations
+ */
+export async function updateUserProfile(supabaseUid, profile, keywordIds) {
+  const {
+    firstName, lastName,
+    birthDay, birthMonth, birthYear,
+    location, countryCode, phoneNumber, showPhone,
+    instagramUsername, showInstagram,
+    tiktokUsername,    showTiktok,
+    snapchatUsername,  showSnapchat,
+    discordUsername,   showDiscord,
+    profileImageUrl,
+    answers, skipped,
+  } = profile;
+
+  // Resolve the integer id_user from the Supabase UID.
+  const { data: user, error: findErr } = await supabase
+    .from("users")
+    .select("id_user")
+    .eq("supabase_uid", supabaseUid)
+    .maybeSingle();
+  if (findErr) throw new Error(findErr.message);
+  if (!user)   throw new Error("User not found.");
+
+  // Build date_of_birth string.
+  const dateOfBirth =
+    birthYear && birthMonth && birthDay
+      ? `${birthYear}-${String(birthMonth).padStart(2, "0")}-${String(birthDay).padStart(2, "0")}`
+      : null;
+
+  // Combine country code + local number.
+  const fullPhone =
+    countryCode && phoneNumber
+      ? `${countryCode} ${phoneNumber}`
+      : phoneNumber || null;
+
+  const profileUpdates = {
+    first_name:        firstName         || null,
+    last_name:         lastName          || null,
+    date_of_birth:     dateOfBirth,
+    location:          location          || null,
+    phone_number:      fullPhone,
+    show_phone_number: !!showPhone,
+    instagram:         instagramUsername || null,
+    show_instagram:    !!showInstagram,
+    tiktok:            tiktokUsername    || null,
+    show_tiktok:       !!showTiktok,
+    snapchat:          snapchatUsername  || null,
+    show_snapchat:     !!showSnapchat,
+    discord:           discordUsername   || null,
+    show_discord:      !!showDiscord,
+    // Strip any cache-busting query param before persisting so the DB always
+    // stores a clean, stable URL.
+    profile_url: profileImageUrl ? profileImageUrl.split("?")[0] : null,
+  };
+
+  // Map yes/no answers ("yes" → TRUE, "no" → FALSE, absent/null → NULL).
+  if (answers && typeof answers === "object") {
+    for (const [key, col] of Object.entries(YES_NO_COLS)) {
+      const val = answers[key];
+      profileUpdates[col] = val === "yes" ? true : val === "no" ? false : null;
+    }
+  }
+
+  // Map skip flags (true → TRUE, false/absent → FALSE).
+  if (skipped && typeof skipped === "object") {
+    for (const [key, col] of Object.entries(SKIP_COLS)) {
+      profileUpdates[col] = !!skipped[key];
+    }
+  }
+
+  const { error: updateErr } = await supabase.rpc("update_my_profile", {
+    p_profile: profileUpdates,
+    p_keyword_ids: Array.isArray(keywordIds)
+      ? keywordIds.map(Number).filter((n) => Number.isInteger(n) && n > 0)
+      : null,
+  });
+
+  if (updateErr) {
+    Promise.resolve(supabase
+      .rpc("write_log", { p_action: "EDIT_MY_DATA", p_status: "Error", p_reason: updateErr.message })
+    ).catch(() => {});
+    throw new Error(updateErr.message);
+  }
+
+  Promise.resolve(supabase
+    .rpc("write_log", { p_action: "EDIT_MY_DATA", p_status: "Success" })
+  ).catch(() => {});
+
+  return { ok: true };
+}
+
+// ── deleteUser ────────────────────────────────────────────────────────────────
+/**
+ * Soft-deletes the user row (is_deleted = true).
+ * @param {string} supabaseUid
+ */
+export async function deleteUser() {
+  const { error } = await supabase.rpc("delete_my_account");
+
+  if (error) {
+    Promise.resolve(supabase
+      .rpc("write_log", { p_action: "DELETE_ACCOUNT", p_status: "Error", p_reason: error.message })
+    ).catch(() => {});
+    throw new Error(error.message);
+  }
+
+  Promise.resolve(supabase
+    .rpc("write_log", { p_action: "DELETE_ACCOUNT", p_status: "Success" })
+  ).catch(() => {});
+
+  return { ok: true };
+}
+
+// ── uploadProfilePicture ──────────────────────────────────────────────────────
+/**
+ * Uploads a profile picture to Supabase Storage (bucket: "profile-pictures")
+ * and updates the profile_url column.  Returns the public URL.
+ *
+ * One-time setup in the Supabase dashboard:
+ *   1. Create a public Storage bucket named "profile-pictures".
+ *   2. Add a Storage policy: authenticated users can INSERT/UPDATE objects
+ *      where name starts with their uid (e.g. (storage.foldername(name))[1] = auth.uid()).
+ *
+ * @param {string} supabaseUid
+ * @param {File}   file
+ * @returns {Promise<string>} Public URL
+ */
+export async function uploadProfilePicture(supabaseUid, file) {
+  const ext         = (file.name.split(".").pop() || "jpg").toLowerCase();
+  const allowedExts = ["jpg", "jpeg", "png", "webp", "gif"];
+  if (!allowedExts.includes(ext)) throw new Error("Invalid image file type.");
+
+  const storagePath = `${supabaseUid}.${ext}`;
+
+  const { error: uploadErr } = await supabase.storage
+    .from("profile-pictures")
+    .upload(storagePath, file, { upsert: true, contentType: file.type });
+  if (uploadErr) throw new Error(uploadErr.message);
+
+  const { data: urlData } = supabase.storage
+    .from("profile-pictures")
+    .getPublicUrl(storagePath);
+
+  const cleanUrl = urlData.publicUrl;
+
+  // Persist the clean URL (no cache-bust param) to the DB.
+  const { error: dbErr } = await supabase.rpc("set_my_profile_picture_url", {
+    p_profile_url: cleanUrl,
+  });
+  if (dbErr) throw new Error(dbErr.message);
+
+  Promise.resolve(supabase
+    .rpc("write_log", {
+      p_action:   "UPLOAD_PROFILE_PICTURE",
+      p_status:   "Success",
+      p_metadata: { fileSize: file.size, mimeType: file.type },
+    })
+  ).catch(() => {});
+
+  // Return a cache-busted URL for immediate in-memory display so the browser
+  // doesn't serve a stale cached copy right after an update.
+  return `${cleanUrl}?t=${Date.now()}`;
+}

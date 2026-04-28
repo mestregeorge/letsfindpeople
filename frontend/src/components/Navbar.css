@@ -1,0 +1,64 @@
+.navbar {
+  background: linear-gradient(90deg, #6D28D9, #5B21B6) !important;
+  --bs-navbar-brand-hover-color: #ffffff;
+  min-height: 64px;
+}
+
+.navbar-brand {
+  color: white;
+}
+
+.navbar-brand:hover {
+  color: #ffffff;
+}
+
+.nav-link {
+  color: white;
+  transition: color 0.25s ease;
+}
+
+/* Hover */
+.nav-link:hover,
+.nav-link:focus {
+  color: #ffffff; /* light white */
+}
+
+/* Active click (short press) */
+.nav-link:active {
+  color: #ffffff;
+}
+
+/* Dropdown OPEN state */
+.navbar .nav-link.dropdown-toggle.show {
+  color: #ffffff !important;
+  background: transparent !important;
+}
+
+/* Hover while dropdown is open */
+.navbar .nav-link.dropdown-toggle.show:hover {
+  color: #ffffff;
+}
+
+/* Brand hover */
+.navbar-brand:hover {
+  color: #ffffff;
+}
+
+/* Smooth transition */
+.nav-link,
+.navbar-brand {
+  transition: color 0.25s ease;
+}
+
+.logo {
+  height: 30px;
+  width: auto;
+  margin-right: 5px;
+  margin-top: -5px;
+  vertical-align: middle;
+}
+
+.vimage {
+  height: 50px;
+  width: auto;
+}

@@ -472,7 +472,9 @@ function Navbar({ onProfileSave }) {
     setGoogleLoading(true);
     setAuthError("");
 
-    const redirectTo = `${window.location.origin}${window.location.pathname}`;
+    const siteUrl = import.meta.env.VITE_SITE_URL?.replace(/\/$/, "");
+    const redirectOrigin = siteUrl || window.location.origin;
+    const redirectTo = `${redirectOrigin}/auth/callback`;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo },

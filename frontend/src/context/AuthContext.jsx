@@ -12,15 +12,14 @@ export function AuthProvider({ children }) {
   const [isAdmin, setIsAdmin] = useState(() => {
     try { return localStorage.getItem(ADMIN_CACHE_KEY) === 'true'; } catch { return false; }
   });
-  // Only true when actively fetching role AND no cached value exists yet
+  // True while fetching the current user's role from the database.
   const [isRoleLoading, setIsRoleLoading] = useState(false);
   // Tracks the last UID for which ensureUser was called to prevent double-calls
   // when Supabase fires SIGNED_IN twice during OTP/magic-link verification.
   const ensuredUidRef = useRef(null);
 
   async function fetchRole(uid) {
-    const hasCached = localStorage.getItem(ADMIN_CACHE_KEY) !== null;
-    if (!hasCached) setIsRoleLoading(true);
+    setIsRoleLoading(true);
     try {
       const { data: user, error } = await supabase
         .from("users")

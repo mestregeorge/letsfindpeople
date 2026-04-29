@@ -5,7 +5,7 @@ import defaultProfile from "../assets/default-profile.jpg";
 import { useDbData } from "../context/DbDataContext";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabaseClient";
-import { updateUserProfile, deleteUser, ensureUser, getUserProfile, uploadProfilePicture } from "../lib/userService";
+import { updateUserProfile, deleteUser, getUserProfile, uploadProfilePicture } from "../lib/userService";
 import { requestKeyword } from "../lib/catalogService";
 
 import "./Navbar.css";
@@ -88,11 +88,7 @@ function Navbar({ onProfileSave }) {
     return map;
   }, [dbData]);
 
-  const [codeSent, setCodeSent] = useState(false);
-  const [countdown, setCountdown] = useState(null);
-  const [authEmail, setAuthEmail] = useState("");
-  const [authCode, setAuthCode] = useState("");
-  const [authLoading, setAuthLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [authError, setAuthError] = useState("");
   const [showCancelSubModal, setShowCancelSubModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -398,12 +394,6 @@ function Navbar({ onProfileSave }) {
     );
   };
 
-  useEffect(() => {
-    if (countdown === null || countdown === 0) return;
-    const timer = setTimeout(() => setCountdown(c => c - 1), 1000);
-    return () => clearTimeout(timer);
-  }, [countdown]);
-
   const prevSearchesRef = useRef({});
 
   // Debounce keyword searches per section
@@ -477,91 +467,21 @@ function Navbar({ onProfileSave }) {
     })) autoSelect("vehicles", "Bikes");
   }, [selected.vehicles, vehicleItems, carItemIds, motoItemIds]);
 
-  const sendCode = async (e) => {
-    e.stopPropagation();
-    if (!authEmail.trim()) return;
-    setAuthLoading(true);
-    setAuthError("");
-
-    // Pre-flight: check account status before sending any OTP.
-    try {
-      const { data: emailStatus } = await supabase.rpc("check_email_status", {
-        p_email: authEmail,
-      });
-      if (emailStatus === "deleted") {
-        setAuthError("This account has been deleted and can no longer be accessed.");
-        setAuthLoading(false);
-        return;
-      }
-      if (emailStatus === "banned") {
-        setAuthError("This account has been permanently banned.");
-        setAuthLoading(false);
-        return;
-      }
-      if (emailStatus === "suspended") {
-        setAuthError("This account is temporarily suspended. Please try again later.");
-        setAuthLoading(false);
-        return;
-      }
-    } catch {
-      // Non-blocking: if check fails, allow the flow to continue.
-    }
-
-    const { error } = await supabase.auth.signInWithOtp({ email: authEmail });
-    setAuthLoading(false);
-    if (error) { setAuthError(error.message); return; }
-    setCodeSent(true);
-    setCountdown(30);
-  };
-
-  const resendCode = async (e) => {
-    e.stopPropagation();
-    setAuthLoading(true);
-    setAuthError("");
-
-    const { error } = await supabase.auth.signInWithOtp({ email: authEmail });
-    setAuthLoading(false);
-    if (error) { setAuthError(error.message); return; }
-    setCountdown(30);
-  };
-
-  const handleLogin = async (e) => {
+  const handleGoogleLogin = async (e) => {
     e.preventDefault();
-    if (!authCode.trim()) return;
-    setAuthLoading(true);
+    setGoogleLoading(true);
     setAuthError("");
-    const { data, error } = await supabase.auth.verifyOtp({ email: authEmail, token: authCode, type: "email" });
-    if (error) { setAuthLoading(false); setAuthError(error.message); return; }
-    // Explicitly ensure the user row exists in the DB right after login
-    try {
-      await ensureUser(data.user.id, data.user.email);
-    } catch (err) {
-      if (err.message === "ACCOUNT_DELETED") {
-        await supabase.auth.signOut();
-        setAuthLoading(false);
-        setAuthError("This account has been deleted and can no longer be accessed.");
-        return;
-      }
-      if (err.message === "ACCOUNT_BANNED") {
-        await supabase.auth.signOut();
-        setAuthLoading(false);
-        setAuthError("This account has been permanently banned. Please contact support.");
-        return;
-      }
-      if (err.message === "ACCOUNT_SUSPENDED") {
-        await supabase.auth.signOut();
-        setAuthLoading(false);
-        setAuthError("This account is temporarily suspended. Please try again later.");
-        return;
-      }
-      setAuthError("Logged in but failed to save to DB: " + err.message);
+
+    const redirectTo = `${window.location.origin}${window.location.pathname}`;
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo },
+    });
+
+    if (error) {
+      setGoogleLoading(false);
+      setAuthError(error.message);
     }
-    setAuthLoading(false);
-    setAuthEmail("");
-    setAuthCode("");
-    setCodeSent(false);
-    setCountdown(null);
-    setAuthError("");
   };
 
   const handleLogout = async (e) => {
@@ -1038,49 +958,28 @@ function Navbar({ onProfileSave }) {
               >
                 Sign Up | Login
               </a>
-              <form className="dropdown-menu dropdown-menu-end p-4" style={{ minWidth: "350px" }} onSubmit={handleLogin}>
-                <div className="mb-3">
-                  <label className="form-label">Email Address</label>
-                  <div className="input-group">
-                    <input
-                      type="email"
-                      className="form-control"
-                      placeholder="email@example.com"
-                      value={authEmail}
-                      onChange={(e) => setAuthEmail(e.target.value)}
-                    />
-                    <button
-                      type="button"
-                      className="btn btn-primary"
-                      onClick={countdown !== null && countdown === 0 ? resendCode : sendCode}
-                      disabled={authLoading || (countdown !== null && countdown > 0) || !authEmail.trim()}
-                    >
-                      {authLoading
-                        ? <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                        : countdown === null ? "Send Code"
-                        : countdown > 0 ? `${countdown}s`
-                        : "Resend Code"}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="mb-3">
-                  <label className="form-label">Code</label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    placeholder={codeSent ? "Enter the code sent to your email" : "Press the button above"}
-                    value={authCode}
-                    onChange={(e) => setAuthCode(e.target.value)}
-                  />
-                </div>
-
-                {authError && <div className="text-danger mb-2" style={{ fontSize: "0.875em" }}>{authError}</div>}
-
-                <button type="submit" className="btn btn-primary w-100" disabled={authLoading || !codeSent}>
-                  Login
+              <div className="dropdown-menu dropdown-menu-end p-4" style={{ minWidth: "280px" }}>
+                <button
+                  type="button"
+                  className="btn btn-google w-100 d-flex align-items-center justify-content-center gap-2"
+                  onClick={handleGoogleLogin}
+                  disabled={googleLoading}
+                >
+                  {googleLoading ? (
+                    <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                  ) : (
+                    <svg className="google-login-mark" viewBox="0 0 18 18" aria-hidden="true">
+                      <path fill="#4285f4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z" />
+                      <path fill="#34a853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.35 0-4.34-1.58-5.05-3.72H.94v2.33A9 9 0 0 0 9 18z" />
+                      <path fill="#fbbc05" d="M3.95 10.7A5.41 5.41 0 0 1 3.67 9c0-.59.1-1.16.28-1.7V4.97H.94A9 9 0 0 0 0 9c0 1.45.34 2.82.94 4.03l3.01-2.33z" />
+                      <path fill="#ea4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.9 11.42 0 9 0A9 9 0 0 0 .94 4.97L3.95 7.3C4.66 5.16 6.65 3.58 9 3.58z" />
+                    </svg>
+                  )}
+                  <span>Continue with Google</span>
                 </button>
-              </form>
+
+                {authError && <div className="text-danger mt-2" style={{ fontSize: "0.875em" }}>{authError}</div>}
+              </div>
             </div>
             )}
           </ul>

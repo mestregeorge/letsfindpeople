@@ -62,3 +62,25 @@
   height: 50px;
   width: auto;
 }
+
+.btn-google {
+  --bs-btn-color: #3c4043;
+  --bs-btn-bg: #ffffff;
+  --bs-btn-border-color: #dadce0;
+  --bs-btn-hover-color: #3c4043;
+  --bs-btn-hover-bg: #f8f9fa;
+  --bs-btn-hover-border-color: #dadce0;
+  --bs-btn-focus-shadow-rgb: 218, 220, 224;
+  --bs-btn-active-color: #3c4043;
+  --bs-btn-active-bg: #f1f3f4;
+  --bs-btn-active-border-color: #dadce0;
+  --bs-btn-disabled-color: #6c757d;
+  --bs-btn-disabled-bg: #ffffff;
+  --bs-btn-disabled-border-color: #dadce0;
+}
+
+.google-login-mark {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+}

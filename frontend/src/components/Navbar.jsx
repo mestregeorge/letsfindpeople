@@ -584,6 +584,7 @@ function Navbar({ onProfileSave }) {
       }
       setSavedProfile(prev => ({ ...prev, subscriptionStatus: "canceled" }));
       setSubscriptionDetails({ loading: false, error: "", currentPeriodEnd: null });
+      window.location.reload();
     } catch (err) {
       alert("Failed to cancel subscription: " + err.message);
     } finally {
@@ -618,6 +619,22 @@ function Navbar({ onProfileSave }) {
     setShowEditModal(true);
     setEditStage(1);
   };
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(routerLocation.search);
+    if (searchParams.get("subscribed") !== "1") return;
+
+    searchParams.delete("subscribed");
+    const cleanSearch = searchParams.toString();
+    navigate(
+      {
+        pathname: routerLocation.pathname,
+        search: cleanSearch ? `?${cleanSearch}` : "",
+        hash: routerLocation.hash,
+      },
+      { replace: true },
+    );
+  }, [navigate, routerLocation.hash, routerLocation.pathname, routerLocation.search]);
 
   useEffect(() => {
     if (routerLocation.pathname !== "/") return;
@@ -1125,7 +1142,7 @@ function Navbar({ onProfileSave }) {
                       ? "Basic Plan (canceling)"
                       : "Free Trial"}
                   </div>
-                  <div style={{ fontSize: "0.85em", color: "#6c757d" }}>
+                  <div>
                     {subscriptionDetails.loading
                       ? "Loading payment date..."
                       : subscriptionDetails.currentPeriodEnd

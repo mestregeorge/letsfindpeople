@@ -117,7 +117,11 @@ Deno.serve(async (req: Request) => {
     line_items: [{ price: priceId, quantity: 1 }],
     success_url: successUrl,
     cancel_url:  cancelUrl,
+    client_reference_id: user.id,
     metadata:    { supabaseUid: user.id },
+    subscription_data: {
+      metadata: { supabaseUid: user.id },
+    },
   };
 
   if (dbUser.stripe_customer_id) {

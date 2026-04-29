@@ -20,6 +20,53 @@ function json(body: unknown, status = 200) {
   });
 }
 
+function getSupabaseUidFromSession(session: Stripe.Checkout.Session) {
+  return session.metadata?.supabaseUid || session.client_reference_id || null;
+}
+
+function deriveSubscriptionStatus(sub: Stripe.Subscription) {
+  return sub.cancel_at_period_end ? "canceling" : sub.status;
+}
+
+async function updateUserSubscription(
+  supabase: ReturnType<typeof createClient>,
+  {
+    supabaseUid,
+    stripeCustomerId,
+    stripeSubscriptionId,
+    subscriptionStatus,
+  }: {
+    supabaseUid?: string | null;
+    stripeCustomerId: string;
+    stripeSubscriptionId: string | null;
+    subscriptionStatus: string;
+  },
+) {
+  const payload = {
+    stripe_customer_id: stripeCustomerId,
+    stripe_subscription_id: stripeSubscriptionId,
+    subscription_status: subscriptionStatus,
+  };
+
+  const query = supabase
+    .from("users")
+    .update(payload)
+    .select("id_user");
+
+  const result = supabaseUid
+    ? await query.eq("supabase_uid", supabaseUid)
+    : await query.eq("stripe_customer_id", stripeCustomerId);
+
+  if (result.error) throw result.error;
+  if (!result.data?.length) {
+    throw new Error(
+      supabaseUid
+        ? `No user row matched supabase_uid=${supabaseUid}`
+        : `No user row matched stripe_customer_id=${stripeCustomerId}`,
+    );
+  }
+}
+
 Deno.serve(async (req: Request) => {
   const stripeKey     = Deno.env.get("STRIPE_SECRET_KEY")!;
   const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET")!;
@@ -48,43 +95,39 @@ Deno.serve(async (req: Request) => {
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
-        const supabaseUid = session.metadata?.supabaseUid;
+        const supabaseUid = getSupabaseUidFromSession(session);
         if (supabaseUid && session.customer && session.subscription) {
-          await supabase
-            .from("users")
-            .update({
-              stripe_customer_id:    session.customer as string,
-              stripe_subscription_id: session.subscription as string,
-              subscription_status:   "active",
-            })
-            .eq("supabase_uid", supabaseUid);
+          const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
+          await updateUserSubscription(supabase, {
+            supabaseUid,
+            stripeCustomerId: session.customer as string,
+            stripeSubscriptionId: subscription.id,
+            subscriptionStatus: deriveSubscriptionStatus(subscription),
+          });
         }
         break;
       }
 
+      case "customer.subscription.created":
       case "customer.subscription.updated": {
         const sub = event.data.object as Stripe.Subscription;
-        // If the subscription is marked to cancel at period end, reflect that.
-        const derivedStatus = sub.cancel_at_period_end ? "canceling" : sub.status;
-        await supabase
-          .from("users")
-          .update({
-            subscription_status:    derivedStatus,
-            stripe_subscription_id: sub.id,
-          })
-          .eq("stripe_customer_id", sub.customer as string);
+        await updateUserSubscription(supabase, {
+          supabaseUid: sub.metadata?.supabaseUid,
+          stripeCustomerId: sub.customer as string,
+          stripeSubscriptionId: sub.id,
+          subscriptionStatus: deriveSubscriptionStatus(sub),
+        });
         break;
       }
 
       case "customer.subscription.deleted": {
         const sub = event.data.object as Stripe.Subscription;
-        await supabase
-          .from("users")
-          .update({
-            subscription_status:    "canceled",
-            stripe_subscription_id: null,
-          })
-          .eq("stripe_customer_id", sub.customer as string);
+        await updateUserSubscription(supabase, {
+          supabaseUid: sub.metadata?.supabaseUid,
+          stripeCustomerId: sub.customer as string,
+          stripeSubscriptionId: null,
+          subscriptionStatus: "canceled",
+        });
         break;
       }
 

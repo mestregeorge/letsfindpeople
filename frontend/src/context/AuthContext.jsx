@@ -12,6 +12,7 @@ export function AuthProvider({ children }) {
   const [isAdmin, setIsAdmin] = useState(() => {
     try { return localStorage.getItem(ADMIN_CACHE_KEY) === 'true'; } catch { return false; }
   });
+  const [authBlockReason, setAuthBlockReason] = useState(null);
   // True while fetching the current user's role from the database.
   const [isRoleLoading, setIsRoleLoading] = useState(false);
   // Tracks the last UID for which ensureUser was called to prevent double-calls
@@ -30,11 +31,15 @@ export function AuthProvider({ children }) {
       if (error || !user || user.is_deleted || user.is_banned || isSuspended) {
         setIsAdmin(false);
         localStorage.removeItem(ADMIN_CACHE_KEY);
+        if (user?.is_deleted) {
+          setAuthBlockReason("accountDeleted");
+        }
         if (user?.is_deleted || user?.is_banned || isSuspended) {
           await supabase.auth.signOut();
         }
         return;
       }
+      setAuthBlockReason(null);
       const admin = user.id_type === 2;
       setIsAdmin(admin);
       localStorage.setItem(ADMIN_CACHE_KEY, String(admin));
@@ -49,6 +54,7 @@ export function AuthProvider({ children }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session ?? null);
       if (session?.user) {
+        setAuthBlockReason(null);
         fetchRole(session.user.id);
       } else {
         setIsRoleLoading(false);
@@ -58,6 +64,7 @@ export function AuthProvider({ children }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session ?? null);
       if (session?.user) {
+        setAuthBlockReason(null);
         // Only call ensureUser on genuine sign-in, not on session restoration after a refresh.
         // Guard with a ref so duplicate SIGNED_IN events for the same UID don't double-log.
         if (event === 'SIGNED_IN' && ensuredUidRef.current !== session.user.id) {
@@ -76,7 +83,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ session, isLoading: session === undefined || isRoleLoading, isRoleLoading, isAdmin }}>
+    <AuthContext.Provider value={{ session, isLoading: session === undefined || isRoleLoading, isRoleLoading, isAdmin, authBlockReason }}>
       {children}
     </AuthContext.Provider>
   );

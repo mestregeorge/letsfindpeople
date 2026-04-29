@@ -31,7 +31,7 @@ function ScrollToTop() {
 }
 
 function AuthRedirectHandler() {
-  const { session, isLoading, isAdmin } = useAuth();
+  const { session, isLoading, isAdmin, authBlockReason } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -39,10 +39,17 @@ function AuthRedirectHandler() {
     const hasAuthHash = window.location.hash.includes("access_token=");
     const isAuthCallback = location.pathname === "/auth/callback" || hasAuthHash;
 
-    if (!isAuthCallback || isLoading || !session) return;
+    if (!isAuthCallback || isLoading) return;
+
+    if (authBlockReason === "accountDeleted") {
+      navigate("/account-deleted", { replace: true });
+      return;
+    }
+
+    if (!session) return;
 
     navigate(isAdmin ? "/admin" : "/console", { replace: true });
-  }, [isAdmin, isLoading, location.pathname, navigate, session]);
+  }, [authBlockReason, isAdmin, isLoading, location.pathname, navigate, session]);
 
   return null;
 }
@@ -72,6 +79,7 @@ function App() {
               <Routes>
                 <Route path="/" element={<Landing />} />
                 <Route path="/auth/callback" element={<AuthCallback />} />
+                <Route path="/account-deleted" element={<ErrorPage type="accountDeleted" />} />
                 <Route path="/console" element={<ProtectedRoute><Console currentUser={savedProfile} /></ProtectedRoute>} />
                 <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
                 <Route path="/privacy" element={<Privacy />} />

@@ -16,6 +16,11 @@ const errorContent = {
     title: "Access not allowed",
     message: "Your account does not have permission to open this page.",
   },
+  accountDeleted: {
+    code: "410",
+    title: "Account permanently deleted",
+    message: "This account was permanently deleted and can no longer be used to sign in.",
+  },
 };
 
 export default function ErrorPage({ type = "notFound" }) {

@@ -50,3 +50,6 @@ enable_confirmations = false
 #   STRIPE_SECRET_KEY
 #   STRIPE_WEBHOOK_SECRET
 #   STRIPE_PRICE_ID
+
+[functions.stripe-webhook]
+verify_jwt = false

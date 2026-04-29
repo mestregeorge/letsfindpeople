@@ -530,7 +530,7 @@ function Navbar({ onProfileSave }) {
   const handleCancelSubscription = async (e) => {
     e?.preventDefault();
     if (!session?.user) return;
-    if (!window.confirm("Are you sure you want to cancel your subscription? You won't be charged again, but you'll immediately lose access to unlimited searches.")) return;
+    if (!window.confirm("Are you sure you want to cancel your subscription? You won't be charged again, and you'll keep unlimited searches until the current billing period ends.")) return;
 
     setCancelLoading(true);
     try {
@@ -874,8 +874,8 @@ function Navbar({ onProfileSave }) {
             </Link>
             )}
 
-            {/* Pricing Dropdown - only show when logged in and subscription is not active */}
-            {session && savedProfile.subscriptionStatus !== "active" && (
+            {/* Pricing Dropdown - only show when logged in and subscription is not active or canceling */}
+            {session && !["active", "canceling"].includes(savedProfile.subscriptionStatus) && (
             <div className="dropdown" style={{ position: "relative" }}>
               <a className="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                 Pricing

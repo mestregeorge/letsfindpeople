@@ -92,10 +92,7 @@ Deno.serve(async (req: Request) => {
     return json({ error: "Account is temporarily suspended" }, 403);
   }
 
-  if (
-    dbUser.subscription_status === "active" ||
-    dbUser.subscription_status === "trialing"
-  ) {
+  if (["active", "trialing", "canceling"].includes(dbUser.subscription_status)) {
     return json({ error: "User already has an active subscription" });
   }
 

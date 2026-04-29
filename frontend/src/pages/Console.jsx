@@ -33,7 +33,9 @@ export default function Console({ currentUser }) {
     currentUser?.freeSearchesRemaining ?? 3
   );
 
-  const hasUnlimitedSearches = currentUser?.subscriptionStatus === "active";
+  const hasUnlimitedSearches =
+    currentUser?.subscriptionStatus === "active" ||
+    currentUser?.subscriptionStatus === "canceling";
   const hasFreeSearchesRemaining = freeSearchesRemaining > 0;
   const isSearchDisabled =
     isSearching || catalogLoading || (!hasUnlimitedSearches && !hasFreeSearchesRemaining);

@@ -127,6 +127,7 @@ Deno.serve(async (req: Request) => {
     }
   } catch (err) {
     console.error("[stripe-webhook] handler error:", (err as Error).message);
+    return json({ error: "Webhook handler failed" }, 500);
   }
 
   return json({ received: true });

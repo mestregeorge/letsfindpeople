@@ -39,8 +39,13 @@
 }
 
 .navbar-pricing-dropdown {
+  --navbar-pricing-offset-x: 0px;
   width: 320px;
   min-width: 320px;
+}
+
+.navbar .navbar-pricing-dropdown.show {
+  transform: translateX(var(--navbar-pricing-offset-x)) !important;
 }
 
 .navbar-login-dropdown {

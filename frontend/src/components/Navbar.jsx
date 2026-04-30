@@ -40,6 +40,8 @@ function Navbar({ onProfileSave }) {
   const routerLocation = useLocation();
   const navigate = useNavigate();
   const loginDropdownToggleRef = useRef(null);
+  const pricingDropdownRef = useRef(null);
+  const pricingDropdownMenuRef = useRef(null);
 
   const [otherKeywordRequestStatus, setOtherKeywordRequestStatus] = useState(null); // null | 'loading' | 'done' | 'error'
 
@@ -212,6 +214,43 @@ function Navbar({ onProfileSave }) {
       document.body.style.overflow = previousOverflow;
     };
   }, [isModalOpen]);
+
+  useEffect(() => {
+    const dropdown = pricingDropdownRef.current;
+    const menu = pricingDropdownMenuRef.current;
+    if (!dropdown || !menu) return;
+
+    const updatePricingDropdownOffset = () => {
+      if (!menu.classList.contains("show")) return;
+
+      menu.style.setProperty("--navbar-pricing-offset-x", "0px");
+
+      const viewportPadding = 8;
+      const menuRect = menu.getBoundingClientRect();
+      const maxRight = window.innerWidth - viewportPadding;
+      let offsetX = maxRight - menuRect.right;
+
+      if (menuRect.left + offsetX < viewportPadding) {
+        offsetX = viewportPadding - menuRect.left;
+      }
+
+      menu.style.setProperty("--navbar-pricing-offset-x", `${Math.max(0, offsetX)}px`);
+    };
+
+    const resetPricingDropdownOffset = () => {
+      menu.style.setProperty("--navbar-pricing-offset-x", "0px");
+    };
+
+    dropdown.addEventListener("shown.bs.dropdown", updatePricingDropdownOffset);
+    dropdown.addEventListener("hidden.bs.dropdown", resetPricingDropdownOffset);
+    window.addEventListener("resize", updatePricingDropdownOffset);
+
+    return () => {
+      dropdown.removeEventListener("shown.bs.dropdown", updatePricingDropdownOffset);
+      dropdown.removeEventListener("hidden.bs.dropdown", resetPricingDropdownOffset);
+      window.removeEventListener("resize", updatePricingDropdownOffset);
+    };
+  }, [session, savedProfile.subscriptionStatus]);
 
   // Hydrate all profile state from DB once session + catalog are both ready
   useEffect(() => {
@@ -959,11 +998,14 @@ function Navbar({ onProfileSave }) {
 
             {/* Pricing Dropdown - only show when logged in and subscription is not active or canceling */}
             {session && !["active", "canceling"].includes(savedProfile.subscriptionStatus) && (
-            <div className="dropdown" style={{ position: "relative" }}>
+            <div className="dropdown" style={{ position: "relative" }} ref={pricingDropdownRef}>
               <a className="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                 Pricing
               </a>
-              <div className="dropdown-menu dropdown-menu-end p-4 navbar-dropdown-panel navbar-pricing-dropdown">
+              <div
+                className="dropdown-menu dropdown-menu-end p-4 navbar-dropdown-panel navbar-pricing-dropdown"
+                ref={pricingDropdownMenuRef}
+              >
                 <div className="row align-items-center">
                   <h5 className="title mb-2">Free Trial</h5>
                   <p className="text mb-0">Access to limited searches and all keywords.</p>

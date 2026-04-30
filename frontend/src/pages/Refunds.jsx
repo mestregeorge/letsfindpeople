@@ -55,8 +55,8 @@ export default function Refunds() {
           In rare cases involving billing errors caused by us (e.g. a duplicate
           charge), we will review the situation and issue a correction if
           verified. To report a billing error, contact us at{" "}
-          <a href="mailto:georgeteixeiraaguiar@gmail.com">
-            georgeteixeiraaguiar@gmail.com
+          <a href="mailto:contact@letsfindpeople.com">
+            contact@letsfindpeople.com
           </a>{" "}
           within 7 days of the charge.
         </p>
@@ -72,8 +72,8 @@ export default function Refunds() {
         <h4>6. Contact</h4>
         <p>
           For billing-related questions, contact us at:{" "}
-          <a href="mailto:georgeteixeiraaguiar@gmail.com">
-            georgeteixeiraaguiar@gmail.com
+          <a href="mailto:contact@letsfindpeople.com">
+            contact@letsfindpeople.com
           </a>
         </p>
       </div>

@@ -124,8 +124,8 @@ export default function Terms() {
         <h4>12. Contact</h4>
         <p>
           For questions about these Terms, contact us at:{" "}
-          <a href="mailto:georgeteixeiraaguiar@gmail.com">
-            georgeteixeiraaguiar@gmail.com
+          <a href="mailto:contact@letsfindpeople.com">
+            contact@letsfindpeople.com
           </a>
         </p>
       </div>

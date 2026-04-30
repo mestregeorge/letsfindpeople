@@ -91,8 +91,8 @@ export default function Cookies() {
         <h4>6. Contact</h4>
         <p>
           For questions about our use of cookies, contact us at:{" "}
-          <a href="mailto:georgeteixeiraaguiar@gmail.com">
-            georgeteixeiraaguiar@gmail.com
+          <a href="mailto:contact@letsfindpeople.com">
+            contact@letsfindpeople.com
           </a>
         </p>
       </div>

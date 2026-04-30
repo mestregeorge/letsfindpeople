@@ -14,8 +14,8 @@ export default function Contact() {
 
         <h4>Email</h4>
         <p>
-          <a href="mailto:georgeteixeiraaguiar@gmail.com">
-            georgeteixeiraaguiar@gmail.com
+          <a href="mailto:contact@letsfindpeople.com">
+            contact@letsfindpeople.com
           </a>
         </p>
         <p>

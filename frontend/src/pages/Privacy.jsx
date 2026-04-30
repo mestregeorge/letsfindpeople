@@ -126,8 +126,8 @@ export default function Privacy() {
         </ul>
         <p>
           To exercise any of these rights, please contact us at{" "}
-          <a href="mailto:georgeteixeiraaguiar@gmail.com">
-            georgeteixeiraaguiar@gmail.com
+          <a href="mailto:contact@letsfindpeople.com">
+            contact@letsfindpeople.com
           </a>
           .
         </p>
@@ -150,8 +150,8 @@ export default function Privacy() {
         <h4>10. Contact</h4>
         <p>
           For any privacy-related questions, contact us at:{" "}
-          <a href="mailto:georgeteixeiraaguiar@gmail.com">
-            georgeteixeiraaguiar@gmail.com
+          <a href="mailto:contact@letsfindpeople.com">
+            contact@letsfindpeople.com
           </a>
         </p>
       </div>

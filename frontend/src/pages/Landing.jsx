@@ -1,5 +1,7 @@
-import Carousel from "../components/Carousel";
-import square from "../assets/square.jpg";
+import login from "../assets/login.gif";
+import profile from "../assets/profile.gif";
+import search from "../assets/search.gif";
+
 import profiles from "../assets/profiles.png";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
@@ -25,7 +27,7 @@ function Landing() {
           <div className="row row-cols-1 row-cols-md-3 g-4 landing-steps-row">
             <div className="col">
               <div className="card h-100">
-                <img src={square} className="card-img-top"/>
+                <img src={login} className="card-img-top"/>
                 <div className="card-body text-center">
                   <h3>1- Login</h3>
                   <p>Create your account and login</p>
@@ -34,7 +36,7 @@ function Landing() {
             </div>
             <div className="col">
               <div class="card h-100">
-                <img src={square} className="card-img-top"/>
+                <img src={profile} className="card-img-top"/>
                 <div class="card-body text-center">
                   <h3>2- Set Up Profile</h3>
                   <p>Fill in the details in your profile</p>
@@ -43,7 +45,7 @@ function Landing() {
             </div>
             <div className="col">
               <div class="card h-100">
-                <img src={square} className="card-img-top"/>
+                <img src={search} className="card-img-top"/>
                 <div class="card-body text-center">
                   <h3>3- Search</h3>
                   <p>Find people with same interests</p>
@@ -53,7 +55,7 @@ function Landing() {
           </div>
         </div>
 
-        <div className="mt-4 mb-4">
+        <div className="mb-4">
           <div className="row">
             <div className="col-12 col-md-4 mx-auto">
               <button type="button" className="btn btn-sm main-btn w-100" onClick={handleSearchNow}>

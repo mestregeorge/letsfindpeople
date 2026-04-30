@@ -199,6 +199,10 @@ h1 {
   text-align: center;
 }
 
+.landing-steps .card {
+  border: 0;
+}
+
 @media (max-width: 576px) {
   .landing-title {
     font-size: 2.5rem;

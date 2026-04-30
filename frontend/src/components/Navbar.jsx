@@ -44,7 +44,7 @@ function Navbar({ onProfileSave }) {
   const pricingDropdownRef = useRef(null);
   const pricingDropdownMenuRef = useRef(null);
 
-  const [otherKeywordRequestStatus, setOtherKeywordRequestStatus] = useState(null); // null | 'loading' | 'done' | 'error'
+  const [keywordRequestStatuses, setKeywordRequestStatuses] = useState({});
 
   // ── Derive item lists from catalog (all empty until catalog loads) ─────────
   const visualArtItems   = useMemo(() => dbData?.categories[0]?.subcategories[0]?.items ?? [], [dbData]);
@@ -151,7 +151,7 @@ function Navbar({ onProfileSave }) {
       URL.revokeObjectURL(imageUrl);
 
       const canvas = document.createElement("canvas");
-      const size = 256;
+      const size = 96;
       canvas.width = size;
       canvas.height = size;
 
@@ -504,6 +504,19 @@ function Navbar({ onProfileSave }) {
   }));
   const toggleSkip = (key) => setSkipped(prev => ({ ...prev, [key]: !prev[key] }));
   const setSearch  = (key, val) => setSearches(prev => ({ ...prev, [key]: val }));
+  const requestMissingKeyword = async (key, term) => {
+    if (!term) return;
+    const current = keywordRequestStatuses[key];
+    if (current?.term === term && current.status === "loading") return;
+
+    setKeywordRequestStatuses(prev => ({ ...prev, [key]: { term, status: "loading" } }));
+    try {
+      await requestKeyword(term);
+      setKeywordRequestStatuses(prev => ({ ...prev, [key]: { term, status: "done" } }));
+    } catch {
+      setKeywordRequestStatuses(prev => ({ ...prev, [key]: { term, status: "error" } }));
+    }
+  };
 
   const detectLocation = () => {
     if (!navigator.geolocation) {
@@ -580,6 +593,12 @@ function Navbar({ onProfileSave }) {
   useEffect(() => {
     if (answers.likeGames === "yes") autoSelect("games", "Video Games");
   }, [answers.likeGames]);
+
+  useEffect(() => {
+    if (answers.likeMemes !== "yes") return;
+    const memesItem = memeItems.find(i => i.id === 4326);
+    if (memesItem) autoSelect("memes", memesItem.name);
+  }, [answers.likeMemes, memeItems]);
 
   useEffect(() => {
     if (answers.likeProgramming === "yes") autoSelect("hobbies", "Coding");
@@ -828,6 +847,10 @@ function Navbar({ onProfileSave }) {
     const filteredUnsel= allFiltered.filter(i => !sel.includes(i.name));
     const unselToShow  = term ? filteredUnsel : filteredUnsel.slice(0, 100);
     const hasMore      = !term && filteredUnsel.length > 100;
+    const requestTerm  = (debouncedSearches[key] || "").trim();
+    const requestState = keywordRequestStatuses[key]?.term === requestTerm
+      ? keywordRequestStatuses[key].status
+      : null;
     return (
       <div>
         <div className="input-group mb-2">
@@ -880,10 +903,10 @@ function Navbar({ onProfileSave }) {
                     {allFiltered.length === 0 && (
                       <span className="text-muted w-100 text-center">
                         No results found.{' '}
-                        {key === 'other' && (
-                          otherKeywordRequestStatus === 'done' ? (
+                        {requestTerm && (
+                          requestState === 'done' ? (
                             <span className="text-success">Keyword requested!</span>
-                          ) : otherKeywordRequestStatus === 'error' ? (
+                          ) : requestState === 'error' ? (
                             <span className="text-danger">Failed to request keyword.</span>
                           ) : (
                             <a
@@ -891,17 +914,10 @@ function Navbar({ onProfileSave }) {
                               style={{ textDecoration: 'underline', color: '#6D28D9' }}
                               onClick={async (e) => {
                                 e.preventDefault();
-                                if (otherKeywordRequestStatus === 'loading') return;
-                                setOtherKeywordRequestStatus('loading');
-                                try {
-                                  await requestKeyword((debouncedSearches['other'] || '').trim());
-                                  setOtherKeywordRequestStatus('done');
-                                } catch {
-                                  setOtherKeywordRequestStatus('error');
-                                }
+                                await requestMissingKeyword(key, requestTerm);
                               }}
                             >
-                              {otherKeywordRequestStatus === 'loading' ? 'Requesting...' : 'Click me to request keyword'}
+                              {requestState === 'loading' ? 'Requesting...' : 'Click me to request keyword'}
                             </a>
                           )
                         )}

@@ -146,7 +146,7 @@ function Navbar({ onProfileSave }) {
   const handleProfileImageChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (file.size > 1 * 1024 * 1024) {
+    if (file.size > 3 * 1024 * 1024) {
       setProfileImageSizeError(true);
       setProfileImage(null);
       setProfileImagePreview(null);

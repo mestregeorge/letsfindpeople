@@ -31,6 +31,9 @@
 }
 
 .navbar .nav-link {
+  align-items: center;
+  display: flex;
+  min-height: 48px;
   white-space: nowrap;
 }
 
@@ -42,10 +45,6 @@
   --navbar-pricing-offset-x: 0px;
   width: 320px;
   min-width: 320px;
-}
-
-.navbar .navbar-pricing-dropdown.show {
-  transform: translateX(var(--navbar-pricing-offset-x)) !important;
 }
 
 .navbar-login-dropdown {
@@ -180,6 +179,7 @@
     min-width: 0;
     max-height: none;
     overflow-y: visible;
+    transform: translateX(var(--navbar-pricing-offset-x)) !important;
   }
 
   .navbar-login-dropdown.show {

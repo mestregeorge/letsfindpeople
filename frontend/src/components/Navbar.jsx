@@ -219,11 +219,13 @@ function Navbar({ onProfileSave }) {
     const dropdown = pricingDropdownRef.current;
     const menu = pricingDropdownMenuRef.current;
     if (!dropdown || !menu) return;
+    const mobilePricingDropdownQuery = window.matchMedia("(max-width: 991.98px)");
 
     const updatePricingDropdownOffset = () => {
       if (!menu.classList.contains("show")) return;
 
       menu.style.setProperty("--navbar-pricing-offset-x", "0px");
+      if (!mobilePricingDropdownQuery.matches) return;
 
       const viewportPadding = 8;
       const menuRect = menu.getBoundingClientRect();

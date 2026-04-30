@@ -166,6 +166,14 @@
     transform: none !important;
   }
 
+  .navbar-pricing-dropdown.show {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    max-height: none;
+    overflow-y: visible;
+  }
+
   .navbar-login-dropdown.show {
     width: min(280px, calc(100vw - 1rem));
   }

@@ -1005,17 +1005,17 @@ function Navbar({ onProfileSave }) {
             </div>
             )}
 
-            {/* Admin Button - show when logged in and user is admin */}
-            {session && savedProfile.idType === 2 && routerLocation.pathname !== "/admin" && (
-            <Link className="nav-link" to="/admin">
-              Admin
-            </Link>
-            )}
-
             {/* Search Button - show when logged in */}
             {session && routerLocation.pathname !== "/console" && (
             <Link className="nav-link" to="/console">
               Go to Search
+            </Link>
+            )}
+
+            {/* Admin Button - show when logged in and user is admin */}
+            {session && savedProfile.idType === 2 && routerLocation.pathname !== "/admin" && (
+            <Link className="nav-link" to="/admin">
+              Admin
             </Link>
             )}
 

@@ -11,6 +11,8 @@ import { requestKeyword } from "../lib/catalogService";
 import { useLaunchLive } from "../lib/launch";
 import "./Navbar.css";
 
+const GENDER_KEYWORDS = ["Male", "Female", "Other"];
+
 async function getFunctionErrorMessage(error, data, fallback) {
   if (data?.error) return data.error;
 
@@ -332,6 +334,7 @@ function Navbar({ onProfileSave }) {
       sexuality: sexualityItems, fitness: fitnessItems, sports: sportsItems,
       outdoor: outdoorItems, food: foodItems, places: placeItems,
       animals: animalItems, vehicles: vehicleItems, roleModels: roleModelItems,
+      other: otherItems,
     };
 
     getUserProfile(session.user.id)
@@ -496,14 +499,37 @@ function Navbar({ onProfileSave }) {
     !isProfileComplete;
 
   const setAnswer  = (key, val) => setAnswers(prev  => ({ ...prev, [key]: prev[key] === val ? null : val }));
-  const toggleKw   = (key, name) => setSelected(prev => ({
-    ...prev,
-    [key]: (prev[key] || []).includes(name)
-      ? (prev[key] || []).filter(k => k !== name)
-      : [...(prev[key] || []), name],
-  }));
+  const toggleKw   = (key, name) => setSelected(prev => {
+    const current = prev[key] || [];
+    if (key === "other" && GENDER_KEYWORDS.includes(name)) {
+      const withoutGender = current.filter(k => !GENDER_KEYWORDS.includes(k));
+      return {
+        ...prev,
+        [key]: current.includes(name) ? withoutGender : [...withoutGender, name],
+      };
+    }
+    return {
+      ...prev,
+      [key]: current.includes(name)
+        ? current.filter(k => k !== name)
+        : [...current, name],
+    };
+  });
   const toggleSkip = (key) => setSkipped(prev => ({ ...prev, [key]: !prev[key] }));
   const setSearch  = (key, val) => setSearches(prev => ({ ...prev, [key]: val }));
+  const selectedGender = GENDER_KEYWORDS.find(name => (selected.other || []).includes(name)) || "";
+  const setGenderSelection = (gender) => {
+    setSelected(prev => {
+      const otherSelected = (prev.other || []).filter(name => !GENDER_KEYWORDS.includes(name));
+      return {
+        ...prev,
+        other: gender ? [...otherSelected, gender] : otherSelected,
+      };
+    });
+    if (gender) {
+      setSkipped(prev => ({ ...prev, other: false }));
+    }
+  };
   const requestMissingKeyword = async (key, term) => {
     if (!term) return;
     const current = keywordRequestStatuses[key];
@@ -1339,9 +1365,9 @@ function Navbar({ onProfileSave }) {
                     )}
                   </div>
 
-                  {/* First Name & Last Name Row */}
-                  <div className="row">
-                    <div className="col-md-6 mb-3">
+                  {/* Name & Gender Row */}
+                  <div className="row g-2 flex-nowrap">
+                    <div className="col-4 mb-3">
                       <label htmlFor="firstName" className="form-label">First Name</label>
                       <input
                         type="text"
@@ -1356,7 +1382,7 @@ function Navbar({ onProfileSave }) {
                         {/\d/.test(firstName) ? "First name should not contain numbers." : "Please enter your first name."}
                       </div>
                     </div>
-                    <div className="col-md-6 mb-3">
+                    <div className="col-4 mb-3">
                       <label htmlFor="lastName" className="form-label">Last Name</label>
                       <input
                         type="text"
@@ -1370,6 +1396,20 @@ function Navbar({ onProfileSave }) {
                       <div className="invalid-feedback">
                         {/\d/.test(lastName) ? "Last name should not contain numbers." : "Please enter your last name."}
                       </div>
+                    </div>
+                    <div className="col-4 mb-3">
+                      <label htmlFor="gender" className="form-label">Gender</label>
+                      <select
+                        id="gender"
+                        className="form-select"
+                        value={selectedGender}
+                        onChange={(e) => setGenderSelection(e.target.value)}
+                      >
+                        <option value="">Select</option>
+                        {GENDER_KEYWORDS.map(gender => (
+                          <option key={gender} value={gender}>{gender}</option>
+                        ))}
+                      </select>
                     </div>
                   </div>
 

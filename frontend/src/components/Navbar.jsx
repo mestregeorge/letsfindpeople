@@ -132,15 +132,15 @@ function Navbar({ onProfileSave }) {
   const [locatingUser, setLocatingUser] = useState(false);
   const [countryCode, setCountryCode] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [showPhone, setShowPhone] = useState(false);
+  const [showPhone, setShowPhone] = useState(true);
   const [instagramUsername, setInstagramUsername] = useState("");
-  const [showInstagram, setShowInstagram] = useState(false);
+  const [showInstagram, setShowInstagram] = useState(true);
   const [tiktokUsername, setTiktokUsername] = useState("");
-  const [showTiktok, setShowTiktok] = useState(false);
+  const [showTiktok, setShowTiktok] = useState(true);
   const [snapchatUsername, setSnapchatUsername] = useState("");
-  const [showSnapchat, setShowSnapchat] = useState(false);
+  const [showSnapchat, setShowSnapchat] = useState(true);
   const [discordUsername, setDiscordUsername] = useState("");
-  const [showDiscord, setShowDiscord] = useState(false);
+  const [showDiscord, setShowDiscord] = useState(true);
   const [_profileImage, setProfileImage] = useState(null);
   const [profileImagePreview, setProfileImagePreview] = useState(null);
   const [profileImageSizeError, setProfileImageSizeError] = useState(false);
@@ -227,11 +227,11 @@ function Navbar({ onProfileSave }) {
 
   const [savedProfile, setSavedProfile] = useState({
     firstName: "", lastName: "", birthDay: "", birthMonth: "", birthYear: "",
-    location: "", countryCode: "", phoneNumber: "", showPhone: false,
-    instagramUsername: "", showInstagram: false,
-    tiktokUsername: "", showTiktok: false,
-    snapchatUsername: "", showSnapchat: false,
-    discordUsername: "", showDiscord: false,
+    location: "", countryCode: "", phoneNumber: "", showPhone: true,
+    instagramUsername: "", showInstagram: true,
+    tiktokUsername: "", showTiktok: true,
+    snapchatUsername: "", showSnapchat: true,
+    discordUsername: "", showDiscord: true,
     profileImagePreview: null, answers: {}, selected: {}, skipped: {},
     subscriptionStatus: "free",
     freeSearchesRemaining: 3,
@@ -254,11 +254,11 @@ function Navbar({ onProfileSave }) {
     if (!session) {
       setSavedProfile({
         firstName: "", lastName: "", birthDay: "", birthMonth: "", birthYear: "",
-        location: "", countryCode: "", phoneNumber: "", showPhone: false,
-        instagramUsername: "", showInstagram: false,
-        tiktokUsername: "", showTiktok: false,
-        snapchatUsername: "", showSnapchat: false,
-        discordUsername: "", showDiscord: false,
+        location: "", countryCode: "", phoneNumber: "", showPhone: true,
+        instagramUsername: "", showInstagram: true,
+        tiktokUsername: "", showTiktok: true,
+        snapchatUsername: "", showSnapchat: true,
+        discordUsername: "", showDiscord: true,
         profileImagePreview: null, answers: {}, selected: {}, skipped: {},
         subscriptionStatus: "free",
         freeSearchesRemaining: 3,
@@ -385,6 +385,11 @@ function Navbar({ onProfileSave }) {
           if (val !== null) newAnswers[key] = val;
         }
         const newSkipped = data.skipped || {};
+        const showPhoneDefault = profile.phoneNumber ? profile.showPhone : true;
+        const showInstagramDefault = profile.instagram ? profile.showInstagram : true;
+        const showTiktokDefault = profile.tiktok ? profile.showTiktok : true;
+        const showSnapchatDefault = profile.snapchat ? profile.showSnapchat : true;
+        const showDiscordDefault = profile.discord ? profile.showDiscord : true;
 
         // Apply all state at once
         setFirstName(profile.firstName);
@@ -403,15 +408,15 @@ function Navbar({ onProfileSave }) {
             setPhoneNumber(profile.phoneNumber || "");
           }
         }
-        setShowPhone(profile.showPhone);
+        setShowPhone(showPhoneDefault);
         setInstagramUsername(profile.instagram);
-        setShowInstagram(profile.showInstagram);
+        setShowInstagram(showInstagramDefault);
         setTiktokUsername(profile.tiktok);
-        setShowTiktok(profile.showTiktok);
+        setShowTiktok(showTiktokDefault);
         setSnapchatUsername(profile.snapchat);
-        setShowSnapchat(profile.showSnapchat);
+        setShowSnapchat(showSnapchatDefault);
         setDiscordUsername(profile.discord);
-        setShowDiscord(profile.showDiscord);
+        setShowDiscord(showDiscordDefault);
         setProfileImagePreview(profile.profileUrl);
         setAnswers(newAnswers);
         setSelected(newSelected);
@@ -423,11 +428,11 @@ function Navbar({ onProfileSave }) {
           location: profile.location,
           countryCode: (profile.phoneNumber || "").indexOf(" ") > 0 ? profile.phoneNumber.slice(0, profile.phoneNumber.indexOf(" ")) : "",
           phoneNumber: (profile.phoneNumber || "").indexOf(" ") > 0 ? profile.phoneNumber.slice(profile.phoneNumber.indexOf(" ") + 1) : (profile.phoneNumber || ""),
-          showPhone: profile.showPhone,
-          instagramUsername: profile.instagram, showInstagram: profile.showInstagram,
-          tiktokUsername: profile.tiktok, showTiktok: profile.showTiktok,
-          snapchatUsername: profile.snapchat, showSnapchat: profile.showSnapchat,
-          discordUsername: profile.discord, showDiscord: profile.showDiscord,
+          showPhone: showPhoneDefault,
+          instagramUsername: profile.instagram, showInstagram: showInstagramDefault,
+          tiktokUsername: profile.tiktok, showTiktok: showTiktokDefault,
+          snapchatUsername: profile.snapchat, showSnapchat: showSnapchatDefault,
+          discordUsername: profile.discord, showDiscord: showDiscordDefault,
           profileImagePreview: profile.profileUrl,
           answers: newAnswers, selected: newSelected, skipped: newSkipped,
           subscriptionStatus: profile.subscriptionStatus || "free",
@@ -475,6 +480,9 @@ function Navbar({ onProfileSave }) {
       !!savedProfile.birthMonth &&
       !!savedProfile.birthYear &&
       !!savedProfile.location?.trim();
+    const hasRequiredGender = GENDER_KEYWORDS.some(
+      name => (savedProfile.selected?.other || []).includes(name)
+    );
 
     const hasVisibleContact =
       (!!savedProfile.phoneNumber?.trim() && savedProfile.showPhone) ||
@@ -489,7 +497,7 @@ function Navbar({ onProfileSave }) {
     ).length;
     const completedAllQuestions = answeredYesNo + completedDirect === yesNoKeys.length + directKeys.length;
 
-    return hasRequiredProfileInfo && hasVisibleContact && completedAllQuestions;
+    return hasRequiredProfileInfo && hasRequiredGender && hasVisibleContact && completedAllQuestions;
   }, [savedProfile, yesNoKeys, directKeys]);
 
   const mustCompleteProfile =
@@ -989,10 +997,10 @@ function Navbar({ onProfileSave }) {
         (snapchatUsername.trim() && showSnapchat) ||
         (discordUsername.trim() && showDiscord);
       const firstNameTypeError = firstName.trim() && /\d/.test(firstName);
-    const lastNameTypeError = lastName.trim() && /\d/.test(lastName);
-    const countryCodeTypeError = countryCode && /[a-zA-Z]/.test(countryCode);
-    const phoneTypeError = phoneNumber && /[a-zA-Z]/.test(phoneNumber);
-    if (!firstName.trim() || !lastName.trim() || firstNameTypeError || lastNameTypeError || !birthDay || !birthMonth || !birthYear || !location.trim() || !hasContact || countryCodeTypeError || phoneTypeError) return;
+      const lastNameTypeError = lastName.trim() && /\d/.test(lastName);
+      const countryCodeTypeError = countryCode && /[a-zA-Z]/.test(countryCode);
+      const phoneTypeError = phoneNumber && /[a-zA-Z]/.test(phoneNumber);
+      if (!firstName.trim() || !lastName.trim() || firstNameTypeError || lastNameTypeError || !selectedGender || !birthDay || !birthMonth || !birthYear || !location.trim() || !hasContact || countryCodeTypeError || phoneTypeError) return;
       // Auto-select matching countries/cities in question 26 (places)
       const locationParts = location.split(",").map(p => p.trim().toLowerCase());
       const locationMatches = [...countryItems, ...cityItems]
@@ -1401,15 +1409,17 @@ function Navbar({ onProfileSave }) {
                       <label htmlFor="gender" className="form-label">Gender</label>
                       <select
                         id="gender"
-                        className="form-select"
+                        className={`form-select${validated && !selectedGender ? " is-invalid" : ""}`}
                         value={selectedGender}
                         onChange={(e) => setGenderSelection(e.target.value)}
+                        required
                       >
                         <option value="">Select</option>
                         {GENDER_KEYWORDS.map(gender => (
                           <option key={gender} value={gender}>{gender}</option>
                         ))}
                       </select>
+                      <div className="invalid-feedback">Please select your gender.</div>
                     </div>
                   </div>
 

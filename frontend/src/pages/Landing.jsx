@@ -5,12 +5,10 @@ import search from "../assets/search.gif";
 import profiles from "../assets/profiles.png";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { LAUNCH_MESSAGE, useLaunchLive } from "../lib/launch";
 
 function Landing() {
   const navigate = useNavigate();
   const { session } = useAuth();
-  const launchLive = useLaunchLive();
 
   const handleSearchNow = () => {
     if (session) {
@@ -59,27 +57,17 @@ function Landing() {
 
         <div className="mb-4">
           <div className="row">
-            {launchLive ? (
-              <div className="col-12 col-md-4 mx-auto">
-                <>
-                  <button type="button" className="btn btn-sm main-btn w-100" onClick={handleSearchNow}>
-                    Search Now!
-                  </button>
-                  <div className="d-flex align-items-center justify-content-center gap-2">
-                    <img src={profiles} style={{ height: '32px' }} alt="" />
-                    <strong>350k Users Available</strong>
-                  </div>
-                </>
+            <div className="col-12 col-md-4 mx-auto">
+              <button type="button" className="btn btn-sm main-btn w-100" onClick={handleSearchNow}>
+                Search Now!
+              </button>
+              <div className="d-flex align-items-center justify-content-center gap-2">
+                <img src={profiles} style={{ height: '32px' }} alt="" />
+                <strong>9k+ Keywords Available</strong>
               </div>
-            ) : (
-              <div className="col-12 col-md-10 mx-auto">
-                <div className="text-center">
-                  <h2 className="landing-launch-message text-muted">{LAUNCH_MESSAGE}</h2>
-                </div>
-              </div>
-            )}
+            </div>
           </div>
-      </div>
+        </div>
     </div>
   );
 }

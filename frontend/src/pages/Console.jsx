@@ -91,7 +91,9 @@ export default function Console({ currentUser }) {
     currentUser?.freeSearchesRemaining ?? 3
   );
 
+  const isAdmin = currentUser?.idType === 2;
   const hasUnlimitedSearches =
+    isAdmin ||
     currentUser?.subscriptionStatus === "active" ||
     currentUser?.subscriptionStatus === "canceling";
   const hasFreeSearchesRemaining = freeSearchesRemaining > 0;
@@ -491,7 +493,7 @@ export default function Console({ currentUser }) {
       </div>
 
       {/* Info Text */}
-      {launchLive ? (
+      {launchLive && !isAdmin ? (
         <div className="console-search-info mt-3 d-flex justify-content-between gap-3">
           {searchSetupMessage ? (
             <p className="text-muted mb-0">

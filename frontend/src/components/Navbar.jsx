@@ -1299,7 +1299,7 @@ function Navbar({ onProfileSave }) {
           <ul className="navbar-nav ms-auto align-items-center">
 
             {/* Pricing Dropdown - only show when logged in and subscription is not active or canceling */}
-            {launchLive && session && !["active", "canceling"].includes(savedProfile.subscriptionStatus) && (
+            {launchLive && session && savedProfile.idType !== 2 && !["active", "canceling"].includes(savedProfile.subscriptionStatus) && (
             <div className="dropdown" style={{ position: "relative" }} ref={pricingDropdownRef}>
               <a className="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                 Pricing
@@ -1853,13 +1853,13 @@ function Navbar({ onProfileSave }) {
 
                   {/* Q4 */}
                   <div className="mb-4">
-                    <p className="fw-semibold mb-2">4- Select any movies or movie characters you like.</p>
+                    <p className="fw-semibold mb-2">4- Search any movies or movie characters you like.</p>
                     {renderKeywords("movies", movieItems, true)}
                   </div>
 
                   {/* Q5 */}
                   <div className="mb-4">
-                    <p className="fw-semibold mb-2">5- Select any TV shows or TV show characters you like.</p>
+                    <p className="fw-semibold mb-2">5- Search any TV shows or TV show characters you like.</p>
                     {renderKeywords("tvShows", tvShowItems, true)}
                   </div>
 

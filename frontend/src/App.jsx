@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route, useLocation, useNavigate } from "react-router-dom";
 
-import Landing from "./pages/Landing";
 import Console from "./pages/Console";
 import Admin from "./pages/Admin";
 import Privacy from "./pages/Privacy";
@@ -13,7 +12,6 @@ import ErrorPage from "./pages/ErrorPage";
 
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
-import ProtectedRoute from "./components/ProtectedRoute";
 import AdminRoute from "./components/AdminRoute";
 import { DbDataProvider } from "./context/DbDataContext";
 import { AuthProvider, useAuth } from "./context/AuthContext";
@@ -22,13 +20,12 @@ import './App.css';
 
 const SITE_NAME = "LetsFindPeople";
 const SITE_URL = "https://letsfindpeople.com";
-const DEFAULT_DESCRIPTION = "LetsFindPeople helps you discover and connect with people who share your interests.";
 const DEFAULT_IMAGE_URL = `${SITE_URL}/preview.png`;
 
 const PAGE_META = {
   "/": {
     title: SITE_NAME,
-    description: DEFAULT_DESCRIPTION,
+    description: "LetsFindPeople helps you discover and connect with people who share your interests.",
   },
   "/auth/callback": {
     title: `${SITE_NAME} | Signing In`,
@@ -37,10 +34,6 @@ const PAGE_META = {
   "/account-deleted": {
     title: `${SITE_NAME} | Account Deleted`,
     description: "Your LetsFindPeople account status page.",
-  },
-  "/console": {
-    title: `${SITE_NAME} | Console`,
-    description: "Search for people and manage your LetsFindPeople profile.",
   },
   "/admin": {
     title: `${SITE_NAME} | Admin`,
@@ -147,7 +140,7 @@ function AuthRedirectHandler() {
 
     if (!session) return;
 
-    navigate(isAdmin ? "/admin" : "/console", { replace: true });
+    navigate(isAdmin ? "/admin" : "/", { replace: true });
   }, [authBlockReason, isAdmin, isLoading, location.pathname, navigate, session]);
 
   return null;
@@ -177,10 +170,10 @@ function App() {
             <Navbar onProfileSave={setSavedProfile} />
             <main className="app-content">
               <Routes>
-                <Route path="/" element={<Landing />} />
+                <Route path="/" element={<Console currentUser={savedProfile} />} />
                 <Route path="/auth/callback" element={<AuthCallback />} />
                 <Route path="/account-deleted" element={<ErrorPage type="accountDeleted" />} />
-                <Route path="/console" element={<ProtectedRoute><Console currentUser={savedProfile} /></ProtectedRoute>} />
+                <Route path="/console" element={<ErrorPage type="notFound" />} />
                 <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
                 <Route path="/privacy" element={<Privacy />} />
                 <Route path="/terms" element={<Terms />} />

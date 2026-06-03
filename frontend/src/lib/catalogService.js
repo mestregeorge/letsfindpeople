@@ -166,6 +166,16 @@ export async function searchUsers(keywordIds) {
   return { users };
 }
 
+export async function getUserCount() {
+  const { count, error } = await supabase
+    .from("users")
+    .select("*", { count: "exact", head: true })
+    .eq("is_deleted", false);
+
+  if (error) throw new Error(error.message);
+  return count ?? 0;
+}
+
 /**
  * Consumes one free search for free users, or allows active subscribers through
  * without decrementing their remaining searches.

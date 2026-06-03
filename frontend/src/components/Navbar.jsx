@@ -542,7 +542,7 @@ function Navbar({ onProfileSave }) {
   const mustCompleteProfile =
     !!session &&
     profileLoaded &&
-    routerLocation.pathname === "/console" &&
+    routerLocation.pathname === "/" &&
     !isProfileComplete;
 
   const setAnswer  = (key, val) => setAnswers(prev  => ({ ...prev, [key]: prev[key] === val ? null : val }));
@@ -1225,8 +1225,8 @@ function Navbar({ onProfileSave }) {
             )}
 
             {/* Search Button - show when logged in */}
-            {session && routerLocation.pathname !== "/console" && (
-            <Link className="nav-link" to="/console">
+            {session && routerLocation.pathname !== "/" && (
+            <Link className="nav-link" to="/">
               Go to Search
             </Link>
             )}

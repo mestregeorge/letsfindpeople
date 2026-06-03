@@ -2,10 +2,21 @@ import { useState, useMemo, useEffect, useDeferredValue, useRef } from "react";
 import defaultProfile from "../assets/default-profile.jpg";
 import { useDbData } from "../context/DbDataContext";
 import { useAuth } from "../context/AuthContext";
-import { searchUsers, consumeSearchAllowance, requestKeyword } from "../lib/catalogService";
+import { searchUsers, consumeSearchAllowance, requestKeyword, getUserCount } from "../lib/catalogService";
 import { SEARCH_LOCKED_MESSAGE, useLaunchLive } from "../lib/launch";
 
 const MAX_SEARCH_KEYWORDS = 12;
+const GENDER_KEYWORDS = ["Male", "Female", "Other"];
+const YES_NO_KEYS = [
+  "visualArt", "digitalArt", "listenMusic", "produceMusic", "playInstruments",
+  "likePerforming", "likeWriting", "likeAnime", "likeGames", "likeMemes",
+  "likeTech", "likeProgramming", "likeAI", "attendEducation",
+  "goGym", "practiceSports", "likeOutdoor", "likeCars",
+];
+const DIRECT_KEYS = [
+  "movies", "tvShows", "apps", "careers", "personality", "hobbies",
+  "sexuality", "food", "places", "animals", "roleModels", "other",
+];
 
 const getAge = (birthday) => {
   const birth = new Date(birthday);
@@ -32,6 +43,7 @@ export default function Console({ currentUser }) {
   const [searchError, setSearchError] = useState(null);
   const [searchedKeywords, setSearchedKeywords] = useState([]);
   const [keywordRequestStatus, setKeywordRequestStatus] = useState(null); // null | 'loading' | 'done' | 'error'
+  const [userCount, setUserCount] = useState(null);
   const [isMobileView, setIsMobileView] = useState(() =>
     typeof window !== "undefined" ? window.matchMedia("(max-width: 576px)").matches : false
   );
@@ -43,9 +55,44 @@ export default function Console({ currentUser }) {
     currentUser?.subscriptionStatus === "active" ||
     currentUser?.subscriptionStatus === "canceling";
   const hasFreeSearchesRemaining = freeSearchesRemaining > 0;
+  const isLoggedIn = !!session?.user;
+  const isProfileComplete = useMemo(() => {
+    if (!currentUser) return false;
+
+    const hasRequiredProfileInfo =
+      !!currentUser.firstName?.trim() &&
+      !!currentUser.lastName?.trim() &&
+      !!currentUser.birthDay &&
+      !!currentUser.birthMonth &&
+      !!currentUser.birthYear &&
+      !!currentUser.location?.trim();
+    const hasRequiredGender = GENDER_KEYWORDS.some(
+      name => (currentUser.selected?.other || []).includes(name)
+    );
+    const hasVisibleContact =
+      (!!currentUser.phoneNumber?.trim() && currentUser.showPhone) ||
+      (!!currentUser.instagramUsername?.trim() && currentUser.showInstagram) ||
+      (!!currentUser.tiktokUsername?.trim() && currentUser.showTiktok) ||
+      (!!currentUser.snapchatUsername?.trim() && currentUser.showSnapchat) ||
+      (!!currentUser.discordUsername?.trim() && currentUser.showDiscord);
+    const answeredYesNo = YES_NO_KEYS.filter((key) => currentUser.answers?.[key] != null).length;
+    const completedDirect = DIRECT_KEYS.filter(
+      (key) => (currentUser.selected?.[key]?.length > 0) || currentUser.skipped?.[key]
+    ).length;
+    const completedAllQuestions = answeredYesNo + completedDirect === YES_NO_KEYS.length + DIRECT_KEYS.length;
+
+    return hasRequiredProfileInfo && hasRequiredGender && hasVisibleContact && completedAllQuestions;
+  }, [currentUser]);
+  const searchSetupMessage = !isLoggedIn
+    ? "*You have to login before searching"
+    : !isProfileComplete
+      ? "*You have to set up your profile before searching"
+      : "";
+  const isSearchBlocked = !isLoggedIn || !isProfileComplete;
   const launchLive = useLaunchLive();
   const hasTooManyKeywords = selectedKeywords.length > MAX_SEARCH_KEYWORDS;
   const isSearchDisabled =
+    isSearchBlocked ||
     !launchLive ||
     isSearching ||
     catalogLoading ||
@@ -55,6 +102,22 @@ export default function Console({ currentUser }) {
   useEffect(() => {
     setFreeSearchesRemaining(currentUser?.freeSearchesRemaining ?? 3);
   }, [currentUser?.freeSearchesRemaining]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    getUserCount()
+      .then((count) => {
+        if (isMounted) setUserCount(count);
+      })
+      .catch((err) => {
+        console.warn("Failed to load user count:", err.message);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
@@ -132,6 +195,16 @@ export default function Console({ currentUser }) {
 
     if (!launchLive) {
       setSearchError(SEARCH_LOCKED_MESSAGE);
+      return;
+    }
+
+    if (!isLoggedIn) {
+      setSearchError("You have to login before searching");
+      return;
+    }
+
+    if (!isProfileComplete) {
+      setSearchError("You have to set up your profile before searching");
       return;
     }
 
@@ -367,12 +440,20 @@ export default function Console({ currentUser }) {
       {/* Info Text */}
       {launchLive ? (
         <div className="console-search-info mt-3 d-flex justify-content-between gap-3">
-          {!hasUnlimitedSearches && (
+          {searchSetupMessage ? (
+            <p className="text-muted mb-0">
+              {searchSetupMessage}
+            </p>
+          ) : !hasUnlimitedSearches && (
             <p className="text-muted mb-0">
               *You have {freeSearchesRemaining} free {freeSearchesRemaining === 1 ? "search" : "searches"} remaining
             </p>
           )}
-          <p className="text-muted mb-0 ms-auto">351k users</p>
+          <p className="text-muted mb-0 ms-auto">
+            {userCount == null
+              ? "Loading users..."
+              : `${userCount.toLocaleString()} ${userCount === 1 ? "user" : "users"}`}
+          </p>
         </div>
       ) : (
         <div className="console-search-info mt-3 text-start">

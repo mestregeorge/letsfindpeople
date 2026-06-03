@@ -8,14 +8,22 @@ import { SEARCH_LOCKED_MESSAGE, useLaunchLive } from "../lib/launch";
 const MAX_SEARCH_KEYWORDS = 12;
 const GENDER_KEYWORDS = ["Male", "Female", "Other"];
 const YES_NO_KEYS = [
-  "visualArt", "digitalArt", "listenMusic", "produceMusic", "playInstruments",
-  "likePerforming", "likeWriting", "likeAnime", "likeGames", "likeMemes",
-  "likeTech", "likeProgramming", "likeAI", "attendEducation",
-  "goGym", "practiceSports", "likeOutdoor", "likeCars",
+  "visualArt",
+  "listenMusic",
+  "produceMusic",
+  "likeAnime",
+  "likeGames",
+  "likeProgramming",
+  "attendEducation",
+  "goGym",
 ];
 const DIRECT_KEYS = [
-  "movies", "tvShows", "apps", "careers", "personality", "hobbies",
-  "sexuality", "food", "places", "animals", "roleModels", "other",
+  "movies",
+  "tvShows",
+  "personality",
+  "hobbies",
+  "roleModels",
+  "other",
 ];
 
 const getAge = (birthday) => {
@@ -26,6 +34,38 @@ const getAge = (birthday) => {
   if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
   return age;
 };
+
+function getSelectedGender(selected) {
+  return GENDER_KEYWORDS.find(name => (selected?.other || []).includes(name)) || "";
+}
+
+function getMatchingCountryNames(location, countryItems) {
+  const locationParts = String(location || "")
+    .split(",")
+    .map(part => part.trim().toLowerCase())
+    .filter(Boolean);
+
+  if (locationParts.length === 0) return [];
+
+  return countryItems
+    .filter(item => locationParts.some(part => part === item.name.toLowerCase()))
+    .map(item => item.name);
+}
+
+function getOtherInterestNames(selected, selectedGender, countryNames) {
+  const hiddenNames = new Set(countryNames);
+  if (selectedGender) hiddenNames.add(selectedGender);
+
+  return (selected?.other || []).filter(name => !hiddenNames.has(name));
+}
+
+function isDirectQuestionComplete(selected, skipped, key, selectedGender, countryNames) {
+  if (key === "other") {
+    return getOtherInterestNames(selected, selectedGender, countryNames).length > 0 || !!skipped?.other;
+  }
+
+  return (selected?.[key]?.length > 0) || !!skipped?.[key];
+}
 
 export default function Console({ currentUser }) {
   const { dbData, isLoading: catalogLoading } = useDbData();
@@ -56,6 +96,15 @@ export default function Console({ currentUser }) {
     currentUser?.subscriptionStatus === "canceling";
   const hasFreeSearchesRemaining = freeSearchesRemaining > 0;
   const isLoggedIn = !!session?.user;
+  const countryItems = useMemo(
+    () => dbData?.categories?.[7]?.subcategories?.[0]?.items ?? [],
+    [dbData]
+  );
+  const currentUserGender = getSelectedGender(currentUser?.selected);
+  const currentUserCountryNames = useMemo(
+    () => getMatchingCountryNames(currentUser?.location, countryItems),
+    [currentUser?.location, countryItems]
+  );
   const isProfileComplete = useMemo(() => {
     if (!currentUser) return false;
 
@@ -66,9 +115,7 @@ export default function Console({ currentUser }) {
       !!currentUser.birthMonth &&
       !!currentUser.birthYear &&
       !!currentUser.location?.trim();
-    const hasRequiredGender = GENDER_KEYWORDS.some(
-      name => (currentUser.selected?.other || []).includes(name)
-    );
+    const hasRequiredGender = !!currentUserGender;
     const hasVisibleContact =
       (!!currentUser.phoneNumber?.trim() && currentUser.showPhone) ||
       (!!currentUser.instagramUsername?.trim() && currentUser.showInstagram) ||
@@ -77,12 +124,18 @@ export default function Console({ currentUser }) {
       (!!currentUser.discordUsername?.trim() && currentUser.showDiscord);
     const answeredYesNo = YES_NO_KEYS.filter((key) => currentUser.answers?.[key] != null).length;
     const completedDirect = DIRECT_KEYS.filter(
-      (key) => (currentUser.selected?.[key]?.length > 0) || currentUser.skipped?.[key]
+      (key) => isDirectQuestionComplete(
+        currentUser.selected,
+        currentUser.skipped,
+        key,
+        currentUserGender,
+        currentUserCountryNames
+      )
     ).length;
     const completedAllQuestions = answeredYesNo + completedDirect === YES_NO_KEYS.length + DIRECT_KEYS.length;
 
     return hasRequiredProfileInfo && hasRequiredGender && hasVisibleContact && completedAllQuestions;
-  }, [currentUser]);
+  }, [currentUser, currentUserGender, currentUserCountryNames]);
   const searchSetupMessage = !isLoggedIn
     ? "*You have to login before searching"
     : !isProfileComplete
@@ -449,11 +502,11 @@ export default function Console({ currentUser }) {
               *You have {freeSearchesRemaining} free {freeSearchesRemaining === 1 ? "search" : "searches"} remaining
             </p>
           )}
-          <p className="text-muted mb-0 ms-auto">
-            {userCount == null
-              ? "Loading users..."
-              : `${userCount.toLocaleString()} ${userCount === 1 ? "user" : "users"}`}
-          </p>
+          {userCount >= 10000 && (
+            <p className="text-muted mb-0 ms-auto">
+              {userCount.toLocaleString()} users
+            </p>
+          )}
         </div>
       ) : (
         <div className="console-search-info mt-3 text-start">

@@ -12,6 +12,47 @@ import { useLaunchLive } from "../lib/launch";
 import "./Navbar.css";
 
 const GENDER_KEYWORDS = ["Male", "Female", "Other"];
+const PROFILE_YES_NO_KEYS = [
+  "visualArt",
+  "listenMusic",
+  "produceMusic",
+  "likeAnime",
+  "likeGames",
+  "likeProgramming",
+  "attendEducation",
+  "goGym",
+];
+const PROFILE_DIRECT_KEYS = [
+  "movies",
+  "tvShows",
+  "personality",
+  "hobbies",
+  "roleModels",
+  "other",
+];
+const PROFILE_SELECTOR_KEYS = [
+  "visualArt",
+  "digitalArt",
+  "designSoft",
+  "musicGenres",
+  "musicArtists",
+  "musicSoft",
+  "instruments",
+  "movies",
+  "tvShows",
+  "anime",
+  "games",
+  "progLang",
+  "subjects",
+  "personality",
+  "hobbies",
+  "fitness",
+  "sports",
+  "outdoor",
+  "places",
+  "roleModels",
+  "other",
+];
 const GBP_COUNTRIES = new Set(["GB", "UK", "UNITED KINGDOM", "ENGLAND", "SCOTLAND", "WALES", "NORTHERN IRELAND"]);
 const EUROPE_COUNTRIES = new Set([
   "AL", "AD", "AT", "BY", "BE", "BA", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR",
@@ -73,6 +114,86 @@ function formatStripeDate(unixSeconds) {
     month: "short",
     day: "numeric",
   }).format(new Date(unixSeconds * 1000));
+}
+
+function combineAnswers(...answers) {
+  if (answers.includes("yes")) return "yes";
+  if (answers.includes("no")) return "no";
+  return null;
+}
+
+function getSelectedGender(selected) {
+  return GENDER_KEYWORDS.find(name => (selected?.other || []).includes(name)) || "";
+}
+
+function getMatchingCountryNames(location, countryItems) {
+  const locationParts = String(location || "")
+    .split(",")
+    .map(part => part.trim().toLowerCase())
+    .filter(Boolean);
+
+  if (locationParts.length === 0) return [];
+
+  return countryItems
+    .filter(item => locationParts.some(part => part === item.name.toLowerCase()))
+    .map(item => item.name);
+}
+
+function getOtherInterestNames(selected, selectedGender, countryNames) {
+  const hiddenNames = new Set(countryNames);
+  if (selectedGender) hiddenNames.add(selectedGender);
+
+  return (selected?.other || []).filter(name => !hiddenNames.has(name));
+}
+
+function isDirectQuestionComplete(selected, skipped, key, selectedGender, countryNames) {
+  if (key === "other") {
+    return getOtherInterestNames(selected, selectedGender, countryNames).length > 0 || !!skipped?.other;
+  }
+
+  return (selected?.[key]?.length > 0) || !!skipped?.[key];
+}
+
+function pickKeys(source, keys) {
+  const next = {};
+  for (const key of keys) {
+    if (source?.[key] != null) next[key] = source[key];
+  }
+  return next;
+}
+
+function sanitizeSelectedForProfile(selected, selectedGender, countryNames) {
+  const countryNameSet = new Set(countryNames);
+  const next = {};
+
+  for (const key of PROFILE_SELECTOR_KEYS) {
+    const values = Array.isArray(selected?.[key]) ? selected[key] : [];
+
+    if (key === "other") {
+      const cleaned = values.filter(name =>
+        !countryNameSet.has(name) &&
+        (!GENDER_KEYWORDS.includes(name) || name === selectedGender)
+      );
+      if (selectedGender && !cleaned.includes(selectedGender)) {
+        cleaned.push(selectedGender);
+      }
+      if (cleaned.length > 0) next.other = cleaned;
+      continue;
+    }
+
+    if (key === "places") {
+      if (countryNames.length > 0) next.places = [...countryNames];
+      continue;
+    }
+
+    if (values.length > 0) next[key] = values;
+  }
+
+  if (!next.other && selectedGender) {
+    next.other = [selectedGender];
+  }
+
+  return next;
 }
 
 function Navbar({ onProfileSave }) {
@@ -140,8 +261,6 @@ function Navbar({ onProfileSave }) {
     ...(dbData?.categories[8]?.subcategories[1]?.items ?? []),
     ...(dbData?.categories[8]?.subcategories[2]?.items ?? []),
   ], [dbData]);
-  const carItemIds       = useMemo(() => new Set((dbData?.categories[8]?.subcategories[0]?.items ?? []).map(i => i.id)), [dbData]);
-  const motoItemIds      = useMemo(() => new Set((dbData?.categories[8]?.subcategories[1]?.items ?? []).map(i => i.id)), [dbData]);
   const roleModelItems   = useMemo(() => dbData?.categories[9]?.subcategories[0]?.items ?? [], [dbData]);
   const otherItems       = useMemo(() => (dbData?.categories ?? []).flatMap(cat => cat.subcategories.flatMap(sub => sub.items)), [dbData]);
 
@@ -423,6 +542,9 @@ function Navbar({ onProfileSave }) {
         for (const [key, val] of Object.entries(data.answers || {})) {
           if (val !== null) newAnswers[key] = val;
         }
+        newAnswers.visualArt = combineAnswers(newAnswers.visualArt, newAnswers.digitalArt);
+        newAnswers.produceMusic = combineAnswers(newAnswers.produceMusic, newAnswers.playInstruments);
+        newAnswers.goGym = combineAnswers(newAnswers.goGym, newAnswers.practiceSports, newAnswers.likeOutdoor);
         const newSkipped = data.skipped || {};
         const showPhoneDefault = profile.phoneNumber ? profile.showPhone : true;
         const showInstagramDefault = profile.instagram ? profile.showInstagram : true;
@@ -500,16 +622,23 @@ function Navbar({ onProfileSave }) {
   const [searches, setSearches] = useState({});  // search terms      keyed by selector id
   const [debouncedSearches, setDebouncedSearches] = useState({});
   const [loadingSearchKeys, setLoadingSearchKeys] = useState({});
-  const yesNoKeys = useMemo(() => ([
-    "visualArt", "digitalArt", "listenMusic", "produceMusic", "playInstruments",
-    "likePerforming", "likeWriting", "likeAnime", "likeGames", "likeMemes",
-    "likeTech", "likeProgramming", "likeAI", "attendEducation",
-    "goGym", "practiceSports", "likeOutdoor", "likeCars",
-  ]), []);
-  const directKeys = useMemo(() => ([
-    "movies", "tvShows", "apps", "careers", "personality", "hobbies",
-    "sexuality", "food", "places", "animals", "roleModels", "other",
-  ]), []);
+  const yesNoKeys = useMemo(() => PROFILE_YES_NO_KEYS, []);
+  const directKeys = useMemo(() => PROFILE_DIRECT_KEYS, []);
+  const selectedGender = getSelectedGender(selected);
+  const firstStageCountryNames = useMemo(
+    () => getMatchingCountryNames(location, countryItems),
+    [location, countryItems]
+  );
+  const hiddenOtherInterestNames = useMemo(() => {
+    const hidden = new Set(firstStageCountryNames);
+    if (selectedGender) hidden.add(selectedGender);
+    return hidden;
+  }, [firstStageCountryNames, selectedGender]);
+  const savedProfileGender = getSelectedGender(savedProfile.selected);
+  const savedProfileCountryNames = useMemo(
+    () => getMatchingCountryNames(savedProfile.location, countryItems),
+    [savedProfile.location, countryItems]
+  );
 
   const isProfileComplete = useMemo(() => {
     const hasRequiredProfileInfo =
@@ -519,9 +648,7 @@ function Navbar({ onProfileSave }) {
       !!savedProfile.birthMonth &&
       !!savedProfile.birthYear &&
       !!savedProfile.location?.trim();
-    const hasRequiredGender = GENDER_KEYWORDS.some(
-      name => (savedProfile.selected?.other || []).includes(name)
-    );
+    const hasRequiredGender = !!savedProfileGender;
 
     const hasVisibleContact =
       (!!savedProfile.phoneNumber?.trim() && savedProfile.showPhone) ||
@@ -532,12 +659,18 @@ function Navbar({ onProfileSave }) {
 
     const answeredYesNo = yesNoKeys.filter((key) => savedProfile.answers?.[key] != null).length;
     const completedDirect = directKeys.filter(
-      (key) => (savedProfile.selected?.[key]?.length > 0) || savedProfile.skipped?.[key]
+      (key) => isDirectQuestionComplete(
+        savedProfile.selected,
+        savedProfile.skipped,
+        key,
+        savedProfileGender,
+        savedProfileCountryNames
+      )
     ).length;
     const completedAllQuestions = answeredYesNo + completedDirect === yesNoKeys.length + directKeys.length;
 
     return hasRequiredProfileInfo && hasRequiredGender && hasVisibleContact && completedAllQuestions;
-  }, [savedProfile, yesNoKeys, directKeys]);
+  }, [savedProfile, savedProfileGender, savedProfileCountryNames, yesNoKeys, directKeys]);
 
   const mustCompleteProfile =
     !!session &&
@@ -547,6 +680,8 @@ function Navbar({ onProfileSave }) {
 
   const setAnswer  = (key, val) => setAnswers(prev  => ({ ...prev, [key]: prev[key] === val ? null : val }));
   const toggleKw   = (key, name) => setSelected(prev => {
+    if (key === "other" && hiddenOtherInterestNames.has(name)) return prev;
+
     const current = prev[key] || [];
     if (key === "other" && GENDER_KEYWORDS.includes(name)) {
       const withoutGender = current.filter(k => !GENDER_KEYWORDS.includes(k));
@@ -564,7 +699,6 @@ function Navbar({ onProfileSave }) {
   });
   const toggleSkip = (key) => setSkipped(prev => ({ ...prev, [key]: !prev[key] }));
   const setSearch  = (key, val) => setSearches(prev => ({ ...prev, [key]: val }));
-  const selectedGender = GENDER_KEYWORDS.find(name => (selected.other || []).includes(name)) || "";
   const setGenderSelection = (gender) => {
     setSelected(prev => {
       const otherSelected = (prev.other || []).filter(name => !GENDER_KEYWORDS.includes(name));
@@ -573,9 +707,6 @@ function Navbar({ onProfileSave }) {
         other: gender ? [...otherSelected, gender] : otherSelected,
       };
     });
-    if (gender) {
-      setSkipped(prev => ({ ...prev, other: false }));
-    }
   };
   const requestMissingKeyword = async (key, term) => {
     if (!term) return;
@@ -668,38 +799,12 @@ function Navbar({ onProfileSave }) {
   }, [answers.likeGames]);
 
   useEffect(() => {
-    if (answers.likeMemes !== "yes") return;
-    const memesItem = memeItems.find(i => i.id === 4326);
-    if (memesItem) autoSelect("memes", memesItem.name);
-  }, [answers.likeMemes, memeItems]);
-
-  useEffect(() => {
     if (answers.likeProgramming === "yes") autoSelect("hobbies", "Coding");
   }, [answers.likeProgramming]);
 
   useEffect(() => {
-    if (answers.likeAI === "yes") autoSelect("ai", "AI");
-  }, [answers.likeAI]);
-
-  useEffect(() => {
     if (answers.goGym === "yes") autoSelect("fitness", "Gym");
   }, [answers.goGym]);
-
-  useEffect(() => {
-    if (answers.practiceSports === "yes") autoSelect("hobbies", "Sports");
-  }, [answers.practiceSports]);
-
-  useEffect(() => {
-    const vehicleSel = selected.vehicles || [];
-    if (vehicleSel.some(name => {
-      const item = vehicleItems.find(i => i.name === name);
-      return item && carItemIds.has(item.id);
-    })) autoSelect("vehicles", "Cars");
-    if (vehicleSel.some(name => {
-      const item = vehicleItems.find(i => i.name === name);
-      return item && motoItemIds.has(item.id);
-    })) autoSelect("vehicles", "Bikes");
-  }, [selected.vehicles, vehicleItems, carItemIds, motoItemIds]);
 
   const handleGoogleLogin = async (e) => {
     e.preventDefault();
@@ -913,9 +1018,14 @@ function Navbar({ onProfileSave }) {
   const renderKeywords = (key, items, canSkip) => {
     const term         = (debouncedSearches[key] || "").toLowerCase();
     const isLoadingKw  = !!loadingSearchKeys[key];
-    const sel          = selected[key] || [];
+    const sel          = key === "other"
+      ? (selected[key] || []).filter(name => !hiddenOtherInterestNames.has(name))
+      : selected[key] || [];
     const isSkipped    = canSkip && !!skipped[key];
-    const allFiltered  = items.filter(i => i.name.toLowerCase().includes(term));
+    const allFiltered  = items.filter(i =>
+      i.name.toLowerCase().includes(term) &&
+      (key !== "other" || !hiddenOtherInterestNames.has(i.name))
+    );
     const filteredSel  = allFiltered.filter(i =>  sel.includes(i.name));
     const filteredUnsel= allFiltered.filter(i => !sel.includes(i.name));
     const unselToShow  = term ? filteredUnsel : filteredUnsel.slice(0, 100);
@@ -1047,18 +1157,15 @@ function Navbar({ onProfileSave }) {
         }
         return;
       }
-      // Auto-select matching countries/cities in question 26 (places)
-      const locationParts = location.split(",").map(p => p.trim().toLowerCase());
-      const locationMatches = [...countryItems, ...cityItems]
-        .filter(item => locationParts.some(part => part === item.name.toLowerCase()))
-        .map(item => item.name);
-      if (locationMatches.length > 0) {
-        setSelected(prev => {
-          const existing = prev.places || [];
-          const toAdd = locationMatches.filter(m => !existing.includes(m));
-          return toAdd.length > 0 ? { ...prev, places: [...existing, ...toAdd] } : prev;
-        });
-      }
+      setSelected(prev => {
+        const next = { ...prev };
+        if (firstStageCountryNames.length > 0) {
+          next.places = [...firstStageCountryNames];
+        } else {
+          delete next.places;
+        }
+        return next;
+      });
       setValidated(false);
       setEditStage(2);
     }
@@ -1066,6 +1173,13 @@ function Navbar({ onProfileSave }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const sanitizedAnswers = pickKeys(answers, yesNoKeys);
+    const sanitizedSkipped = pickKeys(skipped, directKeys);
+    const sanitizedSelected = sanitizeSelectedForProfile(
+      selected,
+      selectedGender,
+      firstStageCountryNames
+    );
 
     // Upload a newly selected image to the backend before saving the profile
     let finalImageUrl = profileImagePreview;
@@ -1089,11 +1203,16 @@ function Navbar({ onProfileSave }) {
       snapchatUsername, showSnapchat,
       discordUsername, showDiscord,
       profileImagePreview: finalImageUrl ?? profileImagePreview,
-      answers, selected, skipped,
+      answers: sanitizedAnswers,
+      selected: sanitizedSelected,
+      skipped: sanitizedSkipped,
       subscriptionStatus: savedProfile.subscriptionStatus,
       freeSearchesRemaining: savedProfile.freeSearchesRemaining,
       idType: savedProfile.idType,
     };
+    setAnswers(sanitizedAnswers);
+    setSelected(sanitizedSelected);
+    setSkipped(sanitizedSkipped);
     setSavedProfile(profile);
     if (onProfileSave) onProfileSave(profile);
     closeEditModal({ force: true });
@@ -1118,7 +1237,7 @@ function Navbar({ onProfileSave }) {
           animals: animalItems, vehicles: vehicleItems, roleModels: roleModelItems,
           other: otherItems,
         };
-        const keywordIds = Object.entries(selected)
+        const keywordIds = Object.entries(sanitizedSelected)
           .flatMap(([key, names]) => {
             const items = selectorItems[key] || [];
             return (names || [])
@@ -1136,8 +1255,8 @@ function Navbar({ onProfileSave }) {
             snapchatUsername, showSnapchat,
             discordUsername, showDiscord,
             profileImageUrl: finalImageUrl,
-            answers,
-            skipped,
+            answers: sanitizedAnswers,
+            skipped: sanitizedSkipped,
           },
           keywordIds
         );
@@ -1149,7 +1268,13 @@ function Navbar({ onProfileSave }) {
 
   // Progress counter
   const completedQuestions = yesNoKeys.filter(k => answers[k] != null).length
-    + directKeys.filter(k => (selected[k]?.length > 0) || skipped[k]).length;
+    + directKeys.filter(k => isDirectQuestionComplete(
+      selected,
+      skipped,
+      k,
+      selectedGender,
+      firstStageCountryNames
+    )).length;
   const totalQuestions = yesNoKeys.length + directKeys.length;
   const hasContact = (phoneNumber.trim() && showPhone) ||
     (instagramUsername.trim() && showInstagram) ||
@@ -1686,33 +1811,23 @@ function Navbar({ onProfileSave }) {
                   <>
                   {/* Q1 */}
                   <div className="mb-4">
-                    <p className="fw-semibold mb-2">1- Do you make visual art?</p>
+                    <p className="fw-semibold mb-2">1- Do you make visual or digital art?</p>
                     {renderYesNo("visualArt")}
                     {answers.visualArt === "yes" && (
                       <>
                         <p className="text-muted mb-2" style={{ fontSize: 14 }}>Select any interests you have in visual art.</p>
                         {renderKeywords("visualArt", visualArtItems, false)}
+                        <p className="text-muted mt-3 mb-2" style={{ fontSize: 14 }}>Select any interests you have in digital art.</p>
+                        {renderKeywords("digitalArt", digitalArtItems, false)}
+                        <p className="text-muted mt-3 mb-2" style={{ fontSize: 14 }}>Select any design software you use.</p>
+                        {renderKeywords("designSoft", designSoftItems, false)}
                       </>
                     )}
                   </div>
 
                   {/* Q2 */}
                   <div className="mb-4">
-                    <p className="fw-semibold mb-2">2- Do you make digital art?</p>
-                    {renderYesNo("digitalArt")}
-                    {answers.digitalArt === "yes" && (
-                      <>
-                        <p className="text-muted mb-2" style={{ fontSize: 14 }}>Select any interests you have in digital art.</p>
-                        {renderKeywords("digitalArt", digitalArtItems, false)}
-                        <p className="text-muted mt-3 mb-2" style={{ fontSize: 14 }}>Select any design software you use.</p>
-                        {renderKeywords("designSoft", designSoftItems, true)}
-                      </>
-                    )}
-                  </div>
-
-                  {/* Q3 */}
-                  <div className="mb-4">
-                    <p className="fw-semibold mb-2">3- Do you listen to music?</p>
+                    <p className="fw-semibold mb-2">2- Do you listen to music?</p>
                     {renderYesNo("listenMusic")}
                     {answers.listenMusic === "yes" && (
                       <>
@@ -1724,69 +1839,35 @@ function Navbar({ onProfileSave }) {
                     )}
                   </div>
 
-                  {/* Q4 */}
+                  {/* Q3 */}
                   <div className="mb-4">
-                    <p className="fw-semibold mb-2">4- Do you produce music?</p>
+                    <p className="fw-semibold mb-2">3- Do you produce music or play instruments?</p>
                     {renderYesNo("produceMusic")}
                     {answers.produceMusic === "yes" && (
                       <>
                         <p className="text-muted mb-2" style={{ fontSize: 14 }}>Select any music software you use.</p>
                         {renderKeywords("musicSoft", musicSoftItems, false)}
-                      </>
-                    )}
-                  </div>
-
-                  {/* Q5 */}
-                  <div className="mb-4">
-                    <p className="fw-semibold mb-2">5- Do you play instruments?</p>
-                    {renderYesNo("playInstruments")}
-                    {answers.playInstruments === "yes" && (
-                      <>
-                        <p className="text-muted mb-2" style={{ fontSize: 14 }}>Select the instruments you play.</p>
+                        <p className="text-muted mt-3 mb-2" style={{ fontSize: 14 }}>Select the instruments you play.</p>
                         {renderKeywords("instruments", instrumentItems, false)}
                       </>
                     )}
                   </div>
 
-                  {/* Q6 */}
+                  {/* Q4 */}
                   <div className="mb-4">
-                    <p className="fw-semibold mb-2">6- Do you like performing or watching shows? (singing, dance, etc.)</p>
-                    {renderYesNo("likePerforming")}
-                    {answers.likePerforming === "yes" && (
-                      <>
-                        <p className="text-muted mb-2" style={{ fontSize: 14 }}>Select what you perform or the type of shows you like.</p>
-                        {renderKeywords("performing", performItems, false)}
-                      </>
-                    )}
-                  </div>
-
-                  {/* Q7 */}
-                  <div className="mb-4">
-                    <p className="fw-semibold mb-2">7- Do you like to write? (poetry, journalism, etc.)</p>
-                    {renderYesNo("likeWriting")}
-                    {answers.likeWriting === "yes" && (
-                      <>
-                        <p className="text-muted mb-2" style={{ fontSize: 14 }}>Select what you write or the types of works you like.</p>
-                        {renderKeywords("writing", writingItems, false)}
-                      </>
-                    )}
-                  </div>
-
-                  {/* Q8 */}
-                  <div className="mb-4">
-                    <p className="fw-semibold mb-2">8- Select any movies or movie characters you like.</p>
+                    <p className="fw-semibold mb-2">4- Select any movies or movie characters you like.</p>
                     {renderKeywords("movies", movieItems, true)}
                   </div>
 
-                  {/* Q9 */}
+                  {/* Q5 */}
                   <div className="mb-4">
-                    <p className="fw-semibold mb-2">9- Select any TV shows or TV show characters you like.</p>
+                    <p className="fw-semibold mb-2">5- Select any TV shows or TV show characters you like.</p>
                     {renderKeywords("tvShows", tvShowItems, true)}
                   </div>
 
-                  {/* Q10 */}
+                  {/* Q6 */}
                   <div className="mb-4">
-                    <p className="fw-semibold mb-2">10- Do you like anime?</p>
+                    <p className="fw-semibold mb-2">6- Do you like anime?</p>
                     {renderYesNo("likeAnime")}
                     {answers.likeAnime === "yes" && (
                       <>
@@ -1796,9 +1877,9 @@ function Navbar({ onProfileSave }) {
                     )}
                   </div>
 
-                  {/* Q11 */}
+                  {/* Q7 */}
                   <div className="mb-4">
-                    <p className="fw-semibold mb-2">11- Do you like video games?</p>
+                    <p className="fw-semibold mb-2">7- Do you like video games?</p>
                     {renderYesNo("likeGames")}
                     {answers.likeGames === "yes" && (
                       <>
@@ -1808,39 +1889,9 @@ function Navbar({ onProfileSave }) {
                     )}
                   </div>
 
-                  {/* Q12 */}
+                  {/* Q8 */}
                   <div className="mb-4">
-                    <p className="fw-semibold mb-2">12- Do you like memes?</p>
-                    {renderYesNo("likeMemes")}
-                    {answers.likeMemes === "yes" && (
-                      <>
-                        <p className="text-muted mb-2" style={{ fontSize: 14 }}>Select any memes you like.</p>
-                        {renderKeywords("memes", memeItems, false)}
-                      </>
-                    )}
-                  </div>
-
-                  {/* Q13 */}
-                  <div className="mb-4">
-                    <p className="fw-semibold mb-2">13- Select any apps or social media you like.</p>
-                    {renderKeywords("apps", appItems, true)}
-                  </div>
-
-                  {/* Q14 */}
-                  <div className="mb-4">
-                    <p className="fw-semibold mb-2">14- Do you like technology?</p>
-                    {renderYesNo("likeTech")}
-                    {answers.likeTech === "yes" && (
-                      <>
-                        <p className="text-muted mb-2" style={{ fontSize: 14 }}>Select any phones, laptops, tech brands, or other devices you like.</p>
-                        {renderKeywords("devices", deviceItems, false)}
-                      </>
-                    )}
-                  </div>
-
-                  {/* Q15 */}
-                  <div className="mb-4">
-                    <p className="fw-semibold mb-2">15- Do you like programming?</p>
+                    <p className="fw-semibold mb-2">8- Do you like programming?</p>
                     {renderYesNo("likeProgramming")}
                     {answers.likeProgramming === "yes" && (
                       <>
@@ -1850,21 +1901,9 @@ function Navbar({ onProfileSave }) {
                     )}
                   </div>
 
-                  {/* Q16 */}
+                  {/* Q9 */}
                   <div className="mb-4">
-                    <p className="fw-semibold mb-2">16- Do you like AI?</p>
-                    {renderYesNo("likeAI")}
-                    {answers.likeAI === "yes" && (
-                      <>
-                        <p className="text-muted mb-2" style={{ fontSize: 14 }}>Select any chatbots or AI models you like.</p>
-                        {renderKeywords("ai", aiItems, false)}
-                      </>
-                    )}
-                  </div>
-
-                  {/* Q17 */}
-                  <div className="mb-4">
-                    <p className="fw-semibold mb-2">17- Are you currently in school or university?</p>
+                    <p className="fw-semibold mb-2">9- Are you currently in school or university?</p>
                     {renderYesNo("attendEducation")}
                     {answers.attendEducation === "yes" && (
                       <>
@@ -1874,105 +1913,43 @@ function Navbar({ onProfileSave }) {
                     )}
                   </div>
 
-                  {/* Q18 */}
+                  {/* Q10 */}
                   <div className="mb-4">
-                    <p className="fw-semibold mb-2">18- Select your current or dream career.</p>
-                    {renderKeywords("careers", careerItems, true)}
-                  </div>
-
-                  {/* Q19 */}
-                  <div className="mb-4">
-                    <p className="fw-semibold mb-2">19- Select your personality.</p>
+                    <p className="fw-semibold mb-2">10- Select your personality.</p>
                     {renderKeywords("personality", personalityItems, true)}
                   </div>
 
-                  {/* Q20 */}
+                  {/* Q11 */}
                   <div className="mb-4">
-                    <p className="fw-semibold mb-2">20- Select any hobbies you have.</p>
+                    <p className="fw-semibold mb-2">11- Select any hobbies you have.</p>
                     {renderKeywords("hobbies", hobbyItems, true)}
                   </div>
 
-                  {/* Q21 */}
+                  {/* Q12 */}
                   <div className="mb-4">
-                    <p className="fw-semibold mb-2">21- Select your sexuality.</p>
-                    {renderKeywords("sexuality", sexualityItems, true)}
-                  </div>
-
-                  {/* Q22 */}
-                  <div className="mb-4">
-                    <p className="fw-semibold mb-2">22- Do you go to the gym?</p>
+                    <p className="fw-semibold mb-2">12- Do you work out, practice sports, or like outdoor physical activities?</p>
                     {renderYesNo("goGym")}
                     {answers.goGym === "yes" && (
                       <>
                         <p className="text-muted mb-2" style={{ fontSize: 14 }}>Select any keywords related to your fitness.</p>
                         {renderKeywords("fitness", fitnessItems, false)}
-                      </>
-                    )}
-                  </div>
-
-                  {/* Q23 */}
-                  <div className="mb-4">
-                    <p className="fw-semibold mb-2">23- Do you practice sports?</p>
-                    {renderYesNo("practiceSports")}
-                    {answers.practiceSports === "yes" && (
-                      <>
-                        <p className="text-muted mb-2" style={{ fontSize: 14 }}>Select the sports you practice.</p>
+                        <p className="text-muted mt-3 mb-2" style={{ fontSize: 14 }}>Select the sports you practice.</p>
                         {renderKeywords("sports", sportsItems, false)}
-                      </>
-                    )}
-                  </div>
-
-                  {/* Q24 */}
-                  <div className="mb-4">
-                    <p className="fw-semibold mb-2">24- Do you like outdoor physical activities like hiking or camping?</p>
-                    {renderYesNo("likeOutdoor")}
-                    {answers.likeOutdoor === "yes" && (
-                      <>
-                        <p className="text-muted mb-2" style={{ fontSize: 14 }}>Select any outdoor physical activities you like.</p>
+                        <p className="text-muted mt-3 mb-2" style={{ fontSize: 14 }}>Select any outdoor physical activities you like.</p>
                         {renderKeywords("outdoor", outdoorItems, false)}
                       </>
                     )}
                   </div>
 
-                  {/* Q25 */}
+                  {/* Q13 */}
                   <div className="mb-4">
-                    <p className="fw-semibold mb-2">25- Select any foods, fast food chains, drinks or restaurants you like.</p>
-                    {renderKeywords("food", foodItems, true)}
-                  </div>
-
-                  {/* Q26 */}
-                  <div className="mb-4">
-                    <p className="fw-semibold mb-2">26- Select any countries, cities, or places you're interested in, have been to, or live in.</p>
-                    {renderKeywords("places", placeItems, true)}
-                  </div>
-
-                  {/* Q27 */}
-                  <div className="mb-4">
-                    <p className="fw-semibold mb-2">27- Select any animals or plants you like.</p>
-                    {renderKeywords("animals", animalItems, true)}
-                  </div>
-
-                  {/* Q28 */}
-                  <div className="mb-4">
-                    <p className="fw-semibold mb-2">28- Do you like cars or motorcycles?</p>
-                    {renderYesNo("likeCars")}
-                    {answers.likeCars === "yes" && (
-                      <>
-                        <p className="text-muted mb-2" style={{ fontSize: 14 }}>Select any cars, motorcycles, or other vehicles you like.</p>
-                        {renderKeywords("vehicles", vehicleItems, false)}
-                      </>
-                    )}
-                  </div>
-
-                  {/* Q29 */}
-                  <div className="mb-4">
-                    <p className="fw-semibold mb-2">29- Select any people or role models you follow.</p>
+                    <p className="fw-semibold mb-2">13- Select any people or role models you follow.</p>
                     {renderKeywords("roleModels", roleModelItems, true)}
                   </div>
 
-                  {/* Q30 */}
+                  {/* Q14 */}
                   <div className="mb-4">
-                    <p className="fw-semibold mb-2">30- Select any other interests you have.</p>
+                    <p className="fw-semibold mb-2">14- Select any other interests you have.</p>
                     {renderKeywords("other", otherItems, true)}
                   </div>
                   </>

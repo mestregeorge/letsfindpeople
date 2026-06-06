@@ -227,13 +227,14 @@ export default function Console({ currentUser }) {
     const birth = new Date(Number(birthYear), Number(birthMonth) - 1, Number(birthDay));
     const age = Math.floor((Date.now() - birth.getTime()) / (1000 * 60 * 60 * 24 * 365.25));
     // Navbar stores names in `selected`; resolve them to IDs
-    const keywordIds = Object.values(currentUser.selected || {})
+    const keywordIds = [...new Set(Object.values(currentUser.selected || {})
       .flat()
       .map((name) => nameToIdMap[name])
-      .filter((id) => id != null);
+      .filter((id) => id != null))];
     return {
       id: "current",
       name: `${currentUser.firstName} ${currentUser.lastName}`,
+      isCurrentUser: true,
       age: isNaN(age) ? null : age,
       location: currentUser.location,
       contacts: {
@@ -598,7 +599,7 @@ export default function Console({ currentUser }) {
                           style={{ width: 48, height: 48, borderRadius: "50%", objectFit: "cover", border: "2px solid #dee2e6", flexShrink: 0 }}
                         />
                         <h4 className="card-title mb-0">
-                          {person.name}
+                          {person.name}{person.isCurrentUser ? " (Me)" : ""}
                         </h4>
                       </div>
                       <div className="card-text">

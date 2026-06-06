@@ -518,7 +518,7 @@ export default function Console({ currentUser }) {
       {/* Search Error */}
       {!isSearching && searchError && (
         <div className="container px-0">
-          <div className="card nothing-card text-center mt-4 mb-5">
+          <div className="card nothing-card text-center mt-4 mb-4">
             <div className="card-body d-flex justify-content-center align-items-center">
               <p className="card-text text-danger m-0">Search failed: {searchError}</p>
             </div>
@@ -529,7 +529,7 @@ export default function Console({ currentUser }) {
       {/* Too many keywords selected */}
       {!isSearching && hasTooManyKeywords && !searchError && (
         <div className="container px-0">
-          <div className="card nothing-card text-center mt-4 mb-5">
+          <div className="card nothing-card text-center mt-4 mb-4">
             <div className="card-body d-flex justify-content-center align-items-center">
               <p className="card-text text-muted m-0">Select up to {MAX_SEARCH_KEYWORDS} keywords to search.</p>
             </div>
@@ -540,7 +540,7 @@ export default function Console({ currentUser }) {
       {/* Not searched yet */}
       {!isSearching && !hasTooManyKeywords && !needsKeyword && searchResults === null && (
         <div className="container px-0">
-          <div className="card nothing-card text-center mt-4 mb-5">
+          <div className="card nothing-card text-center mt-4 mb-4">
             <div className="card-body d-flex justify-content-center align-items-center">
               <p className="card-text text-muted m-0">You didn't search yet.</p>
             </div>
@@ -550,7 +550,7 @@ export default function Console({ currentUser }) {
 
       {/* Searching Spinner */}
       {isSearching && (
-        <div className="card nothing-card text-center mt-4 mb-5">
+        <div className="card nothing-card text-center mt-4 mb-4">
           <div className="card-body d-flex justify-content-center align-items-center">
             <div className="spinner-border spinner-primary" role="status">
               <span className="visually-hidden">Searching...</span>
@@ -562,7 +562,7 @@ export default function Console({ currentUser }) {
       {/* No keyword selected */}
       {!isSearching && needsKeyword && (
         <div className="container px-0">
-          <div className="card nothing-card text-center mt-4 mb-5">
+          <div className="card nothing-card text-center mt-4 mb-4">
             <div className="card-body d-flex justify-content-center align-items-center">
               <p className="card-text text-muted m-0">Select at least one keyword to search.</p>
             </div>
@@ -573,7 +573,7 @@ export default function Console({ currentUser }) {
       {/* No matches */}
       {!isSearching && !needsKeyword && searchResults !== null && searchResults.length === 0 && (
         <div className="container px-0">
-          <div className="card nothing-card text-center mt-4 mb-5">
+          <div className="card nothing-card text-center mt-4 mb-4">
             <div className="card-body d-flex justify-content-center align-items-center">
               <p className="card-text text-muted m-0">No users found matching your selected interests.</p>
             </div>

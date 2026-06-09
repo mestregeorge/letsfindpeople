@@ -79,8 +79,8 @@
 
 .navbar-notifications-dropdown {
   --navbar-notifications-offset-x: 0px;
-  width: 280px;
-  min-width: 280px;
+  width: 240px;
+  min-width: 240px;
   max-height: calc(100vh - 5rem);
   margin-bottom: 0.75rem;
   overflow: hidden;
@@ -152,21 +152,26 @@
 .global-chat-avatar-button:hover,
 .global-chat-avatar-button:focus,
 .global-chat-avatar-button:active,
-.global-chat-author-link,
-.global-chat-author-link:hover,
-.global-chat-author-link:focus,
-.global-chat-author-link:active {
+.global-chat-author-button,
+.global-chat-author-button:hover,
+.global-chat-author-button:focus,
+.global-chat-author-button:active {
   box-shadow: none !important;
 }
 
-.global-chat-author-link,
-.global-chat-author-link:hover,
-.global-chat-author-link:focus,
-.global-chat-author-link:active {
+.global-chat-author-button,
+.global-chat-author-button:hover,
+.global-chat-author-button:focus,
+.global-chat-author-button:active {
+  appearance: none;
+  background: transparent;
+  border: 0;
   color: inherit !important;
   font-size: 0.75rem;
   font-weight: 400;
   line-height: 1.2;
+  margin: 0;
+  padding: 0;
   text-decoration: none !important;
 }
 
@@ -309,7 +314,7 @@
     top: 100%;
     right: 0;
     left: auto;
-    width: min(280px, calc(100vw - 1rem));
+    width: min(240px, calc(100vw - 1rem));
     min-width: 0;
     max-height: none;
     overflow-y: visible;
@@ -328,7 +333,7 @@
   }
 
   .navbar-notifications-dropdown {
-    width: min(280px, calc(100vw - 1rem));
+    width: min(240px, calc(100vw - 1rem));
     min-width: 0;
   }
 }

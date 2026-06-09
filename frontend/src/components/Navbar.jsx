@@ -1830,7 +1830,7 @@ function Navbar({ onProfileSave }) {
                 )}
               </button>
               <div
-                className="dropdown-menu dropdown-menu-end p-2 navbar-dropdown-panel navbar-notifications-dropdown"
+                className="dropdown-menu dropdown-menu-end p-3 navbar-dropdown-panel navbar-notifications-dropdown"
                 ref={notificationsDropdownMenuRef}
               >
                 {!session ? (
@@ -2027,7 +2027,7 @@ function Navbar({ onProfileSave }) {
                               <div className="w-75 d-flex flex-column align-items-start">
                                 <button
                                   type="button"
-                                  className="btn btn-link p-0 mb-1 global-chat-author-link"
+                                  className="global-chat-author-button mb-1"
                                   onClick={() => openChatAuthorInConsole(message)}
                                 >
                                   {getChatAuthorName(message)}

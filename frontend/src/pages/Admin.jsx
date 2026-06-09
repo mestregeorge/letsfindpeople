@@ -1200,7 +1200,7 @@ function Admin() {
           )}
 
           {/* Keywords Table */}
-          <div className="d-flex justify-content-between align-items-center gap-3 mt-5 mb-4">
+          <div className="d-flex justify-content-end align-items-center gap-3 mt-5 mb-4">
             <div className="input-group" style={{ minWidth: '380px', maxWidth: '380px' }}>
               <input
                 type="text"

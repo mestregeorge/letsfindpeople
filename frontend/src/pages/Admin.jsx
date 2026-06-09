@@ -1,6 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Chart, registerables } from 'chart.js';
 import { supabase } from '../lib/supabaseClient';
+import {
+  createSiteNotification,
+  NOTIFICATION_BODY_MAX_LENGTH,
+  NOTIFICATION_TITLE_MAX_LENGTH,
+  uploadNotificationCover,
+} from '../lib/notificationService';
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const DELETE_ACCOUNT_ACTIONS = ['DELETE_ACCOUNT', 'ADMIN_DELETE_ACCOUNT'];
@@ -120,6 +126,13 @@ function Admin() {
   const [showAddKeywordModal, setShowAddKeywordModal] = useState(false);
   const [newKeywordName, setNewKeywordName] = useState('');
   const [newKeywordSubcategoryId, setNewKeywordSubcategoryId] = useState('');
+  const [showEventModal, setShowEventModal] = useState(false);
+  const [eventTitle, setEventTitle] = useState('');
+  const [eventBody, setEventBody] = useState('');
+  const [eventCoverFile, setEventCoverFile] = useState(null);
+  const [eventCoverPreview, setEventCoverPreview] = useState('');
+  const [eventSending, setEventSending] = useState(false);
+  const [eventError, setEventError] = useState('');
   const maxPaginationPages = isCompactPagination
     ? COMPACT_MAX_PAGINATION_PAGES
     : DESKTOP_MAX_PAGINATION_PAGES;
@@ -792,6 +805,14 @@ function Admin() {
     };
   }, [createCharts, page]);
 
+  useEffect(() => {
+    return () => {
+      if (eventCoverPreview.startsWith('blob:')) {
+        URL.revokeObjectURL(eventCoverPreview);
+      }
+    };
+  }, [eventCoverPreview]);
+
   // User pagination methods (server-side)
   const getTotalUserPages = () => {
     return Math.max(1, Math.ceil(usersTotal / usersPerPage));
@@ -926,6 +947,67 @@ function Admin() {
     setNewKeywordSubcategoryId('');
     if (subcategories.length === 0) fetchSubcategories();
     setShowAddKeywordModal(true);
+  };
+
+  const openEventModal = () => {
+    setEventTitle('');
+    setEventBody('');
+    setEventCoverFile(null);
+    setEventCoverPreview('');
+    setEventError('');
+    setShowEventModal(true);
+  };
+
+  const closeEventModal = ({ force = false } = {}) => {
+    if (eventSending && !force) return;
+    setShowEventModal(false);
+    setEventTitle('');
+    setEventBody('');
+    setEventCoverFile(null);
+    setEventCoverPreview('');
+    setEventError('');
+  };
+
+  const handleEventCoverChange = (e) => {
+    const file = e.target.files?.[0] || null;
+    setEventCoverFile(file);
+    setEventError('');
+    if (!file) {
+      setEventCoverPreview('');
+      return;
+    }
+    setEventCoverPreview(URL.createObjectURL(file));
+  };
+
+  const handleSendEvent = async (e) => {
+    e?.preventDefault();
+    const trimmedTitle = eventTitle.trim();
+    const trimmedBody = eventBody.trim();
+
+    if (!trimmedTitle) { setEventError('Title is required.'); return; }
+    if (!trimmedBody) { setEventError('Description is required.'); return; }
+
+    setEventSending(true);
+    setEventError('');
+
+    try {
+      const coverUrl = eventCoverFile ? await uploadNotificationCover(eventCoverFile) : '';
+      await createSiteNotification({
+        title: trimmedTitle,
+        body: trimmedBody,
+        coverUrl,
+      });
+      Promise.resolve(supabase.rpc('write_log', {
+        p_action: 'ADMIN_SEND_NOTIFICATION',
+        p_status: 'Success',
+        p_metadata: { title: trimmedTitle },
+      })).catch(() => {});
+      closeEventModal({ force: true });
+    } catch (err) {
+      setEventError(err.message || 'Failed to send notification.');
+    } finally {
+      setEventSending(false);
+    }
   };
 
   const handleAddKwSave = async () => {
@@ -1086,6 +1168,18 @@ function Admin() {
                   </button>
                 ))}
               </nav>
+              <p className="admin-sidebar-section text-uppercase small mb-2 mt-4 px-3">
+                Events
+              </p>
+              <div className="px-2">
+                <button
+                  type="button"
+                  className="admin-sidebar-link nav-link text-start w-100"
+                  onClick={openEventModal}
+                >
+                  Send Notification
+                </button>
+              </div>
             </div>
           </div>
         </aside>
@@ -1576,6 +1670,97 @@ function Admin() {
           </>
           )}
         </>
+      )}
+
+      {/* Send Notification Modal */}
+      {showEventModal && (
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content">
+              <form onSubmit={handleSendEvent}>
+                <div className="modal-header">
+                  <h5 className="modal-title">Send Notification</h5>
+                  <button type="button" className="btn-close" onClick={() => closeEventModal()} disabled={eventSending}></button>
+                </div>
+                <div className="modal-body">
+                  {eventError && (
+                    <div className="alert alert-danger py-2" role="alert">
+                      {eventError}
+                    </div>
+                  )}
+
+                  <div className="mb-3">
+                    <label htmlFor="eventTitle" className="form-label">Title</label>
+                    <input
+                      id="eventTitle"
+                      type="text"
+                      className="form-control"
+                      placeholder="Enter notification title"
+                      value={eventTitle}
+                      maxLength={NOTIFICATION_TITLE_MAX_LENGTH}
+                      onChange={(e) => setEventTitle(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="mb-3">
+                    <label htmlFor="eventBody" className="form-label">Description</label>
+                    <textarea
+                      id="eventBody"
+                      className="form-control"
+                      rows="3"
+                      placeholder="Enter notification description"
+                      value={eventBody}
+                      maxLength={NOTIFICATION_BODY_MAX_LENGTH}
+                      onChange={(e) => setEventBody(e.target.value)}
+                      style={{ height: '96px', resize: 'none' }}
+                      required
+                    ></textarea>
+                  </div>
+
+                  <div className="mb-3">
+                    <label htmlFor="eventCover" className="form-label">
+                      Cover <span className="text-muted fw-normal">(Optional)</span>
+                    </label>
+                    <input
+                      id="eventCover"
+                      type="file"
+                      className="form-control"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      onChange={handleEventCoverChange}
+                    />
+                  </div>
+
+                  {eventCoverPreview && (
+                    <div className="ratio ratio-16x9 bg-light rounded overflow-hidden border">
+                      <img
+                        src={eventCoverPreview}
+                        alt=""
+                        className="w-100 h-100 object-fit-cover"
+                      />
+                    </div>
+                  )}
+                </div>
+                <div className="modal-footer">
+                  <button type="button" className="btn btn-secondary" onClick={() => closeEventModal()} disabled={eventSending}>
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    disabled={eventSending || !eventTitle.trim() || !eventBody.trim()}
+                  >
+                    {eventSending ? (
+                      <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    ) : (
+                      'Send'
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Add Keyword Modal */}

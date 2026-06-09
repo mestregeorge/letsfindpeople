@@ -37,6 +37,31 @@
   white-space: nowrap;
 }
 
+.navbar-chat-button {
+  align-items: center;
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: #ffffff;
+  display: flex;
+  font-size: 1.25rem;
+  justify-content: center;
+  line-height: 1;
+  min-height: 48px;
+  padding: 0;
+  transition: none;
+}
+
+.navbar-chat-button:hover,
+.navbar-chat-button:focus,
+.navbar-chat-button:active {
+  background: transparent;
+  box-shadow: none;
+  color: #ffffff;
+  outline: none;
+  transform: none;
+}
+
 .navbar-dropdown-panel {
   max-width: calc(100vw - 1rem);
 }
@@ -50,6 +75,17 @@
 .navbar-login-dropdown {
   width: 280px;
   min-width: 280px;
+}
+
+.navbar-notifications-dropdown {
+  width: 340px;
+  min-width: 340px;
+  max-height: calc(100vh - 5rem);
+  overflow-y: auto;
+}
+
+.navbar-notifications-dropdown .min-w-0 {
+  min-width: 0;
 }
 
 .navbar-login-heading {
@@ -185,6 +221,11 @@
   .navbar-login-dropdown.show {
     width: min(280px, calc(100vw - 1rem));
   }
+
+  .navbar-notifications-dropdown.show {
+    width: min(340px, calc(100vw - 1rem));
+    min-width: 0;
+  }
 }
 
 @media (max-width: 767.98px) {
@@ -195,6 +236,11 @@
 
   .navbar-login-dropdown {
     width: min(280px, calc(100vw - 1rem));
+  }
+
+  .navbar-notifications-dropdown {
+    width: min(340px, calc(100vw - 1rem));
+    min-width: 0;
   }
 }
 

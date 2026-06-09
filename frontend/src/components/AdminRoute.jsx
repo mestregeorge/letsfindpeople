@@ -1,11 +1,8 @@
 import { useAuth } from "../context/AuthContext";
-import { LOCAL_ADMIN_BYPASS } from "../lib/runtimeFlags";
 import ErrorPage from "../pages/ErrorPage";
 
 export default function AdminRoute({ children }) {
   const { session, isLoading, isAdmin } = useAuth();
-
-  if (LOCAL_ADMIN_BYPASS) return children;
 
   if (isLoading) {
     return (

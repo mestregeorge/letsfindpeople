@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import logo from "../assets/logo.png";
 import defaultProfile from "../assets/default-profile.jpg";
@@ -7,7 +7,20 @@ import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabaseClient";
 import { updateUserProfile, deleteUser, getUserProfile, uploadProfilePicture } from "../lib/userService";
 import { requestKeyword } from "../lib/catalogService";
-import { SHOW_ALL_NAV } from "../lib/runtimeFlags";
+import {
+  CHAT_MAX_MESSAGE_LENGTH,
+  listGlobalChatMessages,
+  removeGlobalChatSubscription,
+  sendGlobalChatMessage,
+  subscribeToGlobalChatMessages,
+} from "../lib/chatService";
+import {
+  getUnreadSiteNotificationCount,
+  listSiteNotifications,
+  markSiteNotificationRead,
+  removeSiteNotificationSubscription,
+  subscribeToSiteNotifications,
+} from "../lib/notificationService";
 
 import "./Navbar.css";
 
@@ -116,6 +129,31 @@ function formatStripeDate(unixSeconds) {
   }).format(new Date(unixSeconds * 1000));
 }
 
+function formatChatTimestamp(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function getChatAuthorName(message) {
+  const name = `${message.author?.firstName || ""} ${message.author?.lastName || ""}`.trim();
+  return name || message.author?.email || "Member";
+}
+
+function formatNotificationTimestamp(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+  }).format(date);
+}
+
 function combineAnswers(...answers) {
   if (answers.includes("yes")) return "yes";
   if (answers.includes("no")) return "no";
@@ -211,13 +249,14 @@ function sanitizeSelectedForProfile(selected, selectedGender, countryNames) {
 
 function Navbar({ onProfileSave }) {
   const { dbData, isLoading: catalogLoading } = useDbData();
-  const { session } = useAuth();
+  const { session, isAdmin } = useAuth();
   const routerLocation = useLocation();
   const navigate = useNavigate();
   const loginDropdownToggleRef = useRef(null);
   const pricingDropdownRef = useRef(null);
   const pricingDropdownMenuRef = useRef(null);
   const contactErrorRef = useRef(null);
+  const chatMessagesEndRef = useRef(null);
 
   const [keywordRequestStatuses, setKeywordRequestStatuses] = useState({});
 
@@ -453,10 +492,21 @@ function Navbar({ onProfileSave }) {
     error: "",
     currentPeriodEnd: null,
   });
+  const [showChatModal, setShowChatModal] = useState(false);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatDraft, setChatDraft] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatSending, setChatSending] = useState(false);
+  const [chatError, setChatError] = useState("");
+  const [notifications, setNotifications] = useState([]);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [notificationsError, setNotificationsError] = useState("");
+  const [selectedNotification, setSelectedNotification] = useState(null);
 
   // tracks whether we've already hydrated state from the DB for the current session
   const [profileLoaded, setProfileLoaded] = useState(false);
-  const isModalOpen = showCancelSubModal || showEditModal;
+  const isModalOpen = showCancelSubModal || showEditModal || showChatModal || !!selectedNotification;
 
   // Reset profile state when the user logs out
   useEffect(() => {
@@ -475,6 +525,14 @@ function Navbar({ onProfileSave }) {
       });
       setProfileLoaded(false);
       setSubscriptionDetails({ loading: false, error: "", currentPeriodEnd: null });
+      setShowChatModal(false);
+      setChatMessages([]);
+      setChatDraft("");
+      setChatError("");
+      setNotifications([]);
+      setUnreadNotifications(0);
+      setNotificationsError("");
+      setSelectedNotification(null);
     }
   }, [session]);
 
@@ -915,6 +973,103 @@ function Navbar({ onProfileSave }) {
     await supabase.auth.signOut();
   };
 
+  const loadGlobalChatMessages = useCallback(async ({ silent = false } = {}) => {
+    if (!session?.user?.id) return;
+
+    if (!silent) setChatLoading(true);
+    setChatError("");
+
+    try {
+      const messages = await listGlobalChatMessages();
+      setChatMessages(messages);
+    } catch (err) {
+      setChatError(err.message || "Failed to load chat.");
+    } finally {
+      if (!silent) setChatLoading(false);
+    }
+  }, [session?.user?.id]);
+
+  const openGlobalChat = () => {
+    setShowChatModal(true);
+    setChatError("");
+  };
+
+  const closeGlobalChat = () => {
+    setShowChatModal(false);
+    setChatDraft("");
+  };
+
+  const handleChatSubmit = async (e) => {
+    e.preventDefault();
+    if (!session?.user) {
+      setChatError("Sign in to send messages.");
+      return;
+    }
+
+    const body = chatDraft.trim();
+    if (!body || chatSending) return;
+
+    setChatSending(true);
+    setChatError("");
+
+    try {
+      const message = await sendGlobalChatMessage(body);
+      setChatDraft("");
+      if (message) {
+        setChatMessages(prev => (
+          prev.some(existing => existing.id === message.id) ? prev : [...prev, message]
+        ));
+      }
+      loadGlobalChatMessages({ silent: true });
+    } catch (err) {
+      setChatError(err.message || "Failed to send message.");
+    } finally {
+      setChatSending(false);
+    }
+  };
+
+  const loadNotifications = useCallback(async ({ silent = false } = {}) => {
+    if (!session?.user?.id) {
+      setNotifications([]);
+      setUnreadNotifications(0);
+      return;
+    }
+
+    if (!silent) setNotificationsLoading(true);
+    setNotificationsError("");
+
+    try {
+      const [items, unreadCount] = await Promise.all([
+        listSiteNotifications(),
+        getUnreadSiteNotificationCount(),
+      ]);
+      setNotifications(items);
+      setUnreadNotifications(unreadCount);
+    } catch (err) {
+      setNotificationsError(err.message || "Failed to load notifications.");
+    } finally {
+      if (!silent) setNotificationsLoading(false);
+    }
+  }, [session?.user?.id]);
+
+  const openNotification = async (notification) => {
+    setSelectedNotification(notification);
+
+    if (!session?.user || notification.isRead) return;
+
+    setNotifications(prev => prev.map(item =>
+      item.id === notification.id ? { ...item, isRead: true } : item
+    ));
+    setUnreadNotifications(prev => Math.max(0, prev - 1));
+
+    try {
+      await markSiteNotificationRead(notification.id);
+      loadNotifications({ silent: true });
+    } catch (err) {
+      setNotificationsError(err.message || "Failed to update notification.");
+    }
+  };
+
   const handleSubscribe = async (e) => {
     e.preventDefault();
 
@@ -1020,10 +1175,51 @@ function Navbar({ onProfileSave }) {
     if (routerLocation.pathname !== "/") return;
     setShowCancelSubModal(false);
     setShowEditModal(false);
+    setShowChatModal(false);
+    setSelectedNotification(null);
     setEditStage(1);
     setValidated(false);
     setSearches({});
   }, [routerLocation.pathname]);
+
+  useEffect(() => {
+    if (!showChatModal || !session?.user?.id) return;
+
+    let isMounted = true;
+    loadGlobalChatMessages();
+
+    const channel = subscribeToGlobalChatMessages(() => {
+      if (isMounted) loadGlobalChatMessages({ silent: true });
+    });
+
+    return () => {
+      isMounted = false;
+      removeGlobalChatSubscription(channel);
+    };
+  }, [loadGlobalChatMessages, session?.user?.id, showChatModal]);
+
+  useEffect(() => {
+    if (!showChatModal) return;
+    window.setTimeout(() => {
+      chatMessagesEndRef.current?.scrollIntoView({ block: "end" });
+    }, 0);
+  }, [chatMessages.length, showChatModal]);
+
+  useEffect(() => {
+    if (!session?.user?.id) return;
+
+    let isMounted = true;
+    loadNotifications();
+
+    const channel = subscribeToSiteNotifications(() => {
+      if (isMounted) loadNotifications({ silent: true });
+    });
+
+    return () => {
+      isMounted = false;
+      removeSiteNotificationSubscription(channel);
+    };
+  }, [loadNotifications, session?.user?.id]);
 
   useEffect(() => {
     const hasSubscription =
@@ -1466,16 +1662,17 @@ function Navbar({ onProfileSave }) {
     () => getBasicPlanPrice(savedProfile.location),
     [savedProfile.location]
   );
-  const showPricingNav = SHOW_ALL_NAV || (
+  const isAdminUser = isAdmin || savedProfile.idType === 2;
+  const showPricingNav = (
     session &&
-    savedProfile.idType !== 2 &&
+    !isAdminUser &&
     !["active", "canceling"].includes(savedProfile.subscriptionStatus)
   );
-  const showSearchNav = (SHOW_ALL_NAV || session) && routerLocation.pathname !== "/";
-  const showAdminNav = (
-    SHOW_ALL_NAV ||
-    (session && savedProfile.idType === 2)
-  ) && routerLocation.pathname !== "/admin";
+  const showSearchNav = session && !isAdminUser && routerLocation.pathname !== "/";
+  const showAdminNav = session && isAdminUser && routerLocation.pathname !== "/admin";
+  const showChatNav = session && !isAdminUser;
+  const showNotificationsNav = session && !isAdminUser;
+  const notificationBadgeLabel = unreadNotifications > 99 ? "99+" : String(unreadNotifications);
 
   return (
     <>
@@ -1488,7 +1685,7 @@ function Navbar({ onProfileSave }) {
         <div className="navbar-collapse" id="navbarNavDropdown">
           <ul className="navbar-nav ms-auto align-items-center">
 
-            {/* Pricing Dropdown - normally gated; SHOW_ALL_NAV only reveals the UI locally. */}
+            {/* Pricing Dropdown */}
             {showPricingNav && (
             <div className="dropdown" style={{ position: "relative" }} ref={pricingDropdownRef}>
               <a className="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -1546,11 +1743,95 @@ function Navbar({ onProfileSave }) {
             </Link>
             )}
 
-            {/* Admin link visibility can be previewed, but /admin stays protected by AdminRoute. */}
             {showAdminNav && (
             <Link className="nav-link" to="/admin">
               Admin
             </Link>
+            )}
+
+            {showChatNav && (
+            <div className="nav-item">
+              <button
+                type="button"
+                className="navbar-chat-button"
+                onClick={openGlobalChat}
+                title="International chat"
+                aria-label="Open international chat"
+              >
+                <i className="bi bi-envelope"></i>
+              </button>
+            </div>
+            )}
+
+            {showNotificationsNav && (
+            <div className="dropdown nav-item">
+              <button
+                type="button"
+                className="navbar-chat-button position-relative"
+                data-bs-toggle="dropdown"
+                aria-expanded="false"
+                title="Notifications"
+                aria-label="Open notifications"
+              >
+                <i className="bi bi-bell"></i>
+                {unreadNotifications > 0 && (
+                  <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                    {notificationBadgeLabel}
+                    <span className="visually-hidden">unread notifications</span>
+                  </span>
+                )}
+              </button>
+              <div className="dropdown-menu dropdown-menu-end p-0 navbar-dropdown-panel navbar-notifications-dropdown">
+                {!session ? (
+                  <div className="px-3 py-4 text-center text-muted">
+                    <i className="bi bi-person-lock d-block fs-3 mb-2"></i>
+                    Sign in to view notifications.
+                  </div>
+                ) : notificationsLoading ? (
+                  <div className="d-flex justify-content-center align-items-center py-4">
+                    <div className="spinner-border spinner-border-sm text-primary" role="status">
+                      <span className="visually-hidden">Loading...</span>
+                    </div>
+                  </div>
+                ) : notificationsError ? (
+                  <div className="px-3 py-3 text-danger small">{notificationsError}</div>
+                ) : notifications.length === 0 ? (
+                  <div className="px-3 py-4 text-center text-muted">
+                    No notifications yet.
+                  </div>
+                ) : (
+                  <div className="list-group list-group-flush">
+                    {notifications.map((notification) => (
+                      <button
+                        key={notification.id}
+                        type="button"
+                        className="list-group-item list-group-item-action"
+                        onClick={() => openNotification(notification)}
+                      >
+                        <div className="d-flex align-items-center gap-2">
+                          {!notification.isRead && (
+                            <span className="badge bg-danger rounded-pill p-1 flex-shrink-0">
+                              <span className="visually-hidden">Unread</span>
+                            </span>
+                          )}
+                          <div className="min-w-0 flex-grow-1">
+                            <div className="d-flex align-items-center justify-content-between gap-2">
+                              <span className="fw-semibold text-truncate">{notification.title}</span>
+                              <small className="text-muted flex-shrink-0">
+                                {formatNotificationTimestamp(notification.createdAt)}
+                              </small>
+                            </div>
+                            <small className="text-muted d-block text-truncate">
+                              {notification.body}
+                            </small>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
             )}
 
             {/* Meus Dados Dropdown */}
@@ -1571,7 +1852,9 @@ function Navbar({ onProfileSave }) {
 
               <ul className="dropdown-menu dropdown-menu-end">
                 <li><a className="dropdown-item" href="#" onClick={(e) => { e.preventDefault(); openEditProfile(); }}>Edit Profile</a></li>
-                <li><a className="dropdown-item" href="#" onClick={(e) => { e.preventDefault(); setShowCancelSubModal(true); }}>Settings</a></li>
+                {!isAdminUser && (
+                  <li><a className="dropdown-item" href="#" onClick={(e) => { e.preventDefault(); setShowCancelSubModal(true); }}>Settings</a></li>
+                )}
                 <li><a className="dropdown-item" href="#" onClick={handleLogout}>Logout</a></li>
               </ul>
             </div>
@@ -1622,6 +1905,165 @@ function Navbar({ onProfileSave }) {
         </div>
       </div>
     </nav>
+
+    {/* Global Chat Modal */}
+    {showChatModal && (
+      <>
+        <div className="modal fade show d-block" tabIndex="-1" role="dialog" aria-modal="true" aria-labelledby="globalChatTitle">
+          <div className="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title" id="globalChatTitle">International Chat</h5>
+                <button type="button" className="btn-close" onClick={closeGlobalChat} aria-label="Close"></button>
+              </div>
+
+              <div className="modal-body bg-light" style={{ height: "320px", overflowY: "auto" }}>
+                {chatError && (
+                  <div className="alert alert-danger py-2" role="alert">
+                    {chatError}
+                  </div>
+                )}
+
+                {!session ? (
+                  <div className="d-flex h-100 flex-column align-items-center justify-content-center text-center text-muted">
+                    <i className="bi bi-person-lock d-block fs-1 mb-2"></i>
+                    Sign in to chat with everyone.
+                  </div>
+                ) : chatLoading ? (
+                  <div className="d-flex justify-content-center align-items-center py-5">
+                    <div className="spinner-border spinner-primary" role="status">
+                      <span className="visually-hidden">Loading...</span>
+                    </div>
+                  </div>
+                ) : chatMessages.length === 0 ? (
+                  <div className="text-center text-muted py-5">
+                    <i className="bi bi-chat-square-dots d-block fs-1 mb-2"></i>
+                    No messages yet.
+                  </div>
+                ) : (
+                  <div className="d-flex flex-column gap-3">
+                    {chatMessages.map((message) => {
+                      const isOwnMessage = message.author?.email === session?.user?.email;
+                      return (
+                        <div
+                          key={message.id}
+                          className={`d-flex gap-2 ${isOwnMessage ? "justify-content-end" : "justify-content-start"}`}
+                        >
+                          {!isOwnMessage && (
+                            <img
+                              src={message.author?.profileUrl || defaultProfile}
+                              alt=""
+                              width="32"
+                              height="32"
+                              className="rounded-circle border object-fit-cover flex-shrink-0"
+                            />
+                          )}
+                          <div className="w-75">
+                            <div className={`d-flex gap-2 align-items-center mb-1 ${isOwnMessage ? "justify-content-end text-end" : ""}`}>
+                              <span className="fw-semibold text-truncate">{getChatAuthorName(message)}</span>
+                              <span className="small text-muted flex-shrink-0">{formatChatTimestamp(message.createdAt)}</span>
+                            </div>
+                            <div className={`rounded-3 p-2 text-break ${isOwnMessage ? "bg-primary text-white" : "bg-white border"}`}>
+                              {message.body}
+                            </div>
+                          </div>
+                          {isOwnMessage && (
+                            <img
+                              src={message.author?.profileUrl || savedProfile.profileImagePreview || defaultProfile}
+                              alt=""
+                              width="32"
+                              height="32"
+                              className="rounded-circle border object-fit-cover flex-shrink-0"
+                            />
+                          )}
+                        </div>
+                      );
+                    })}
+                    <div ref={chatMessagesEndRef}></div>
+                  </div>
+                )}
+              </div>
+
+              <form className="modal-footer" onSubmit={handleChatSubmit}>
+                <div className="input-group">
+                  <label htmlFor="globalChatMessage" className="visually-hidden">Message</label>
+                  <input
+                    type="text"
+                    id="globalChatMessage"
+                    className="form-control"
+                    placeholder={session ? "Message everyone..." : "Sign in to send messages..."}
+                    value={chatDraft}
+                    maxLength={CHAT_MAX_MESSAGE_LENGTH}
+                    disabled={!session}
+                    onChange={(e) => setChatDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        handleChatSubmit(e);
+                      }
+                    }}
+                  />
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    disabled={!session || !chatDraft.trim() || chatSending}
+                  >
+                    {chatSending ? (
+                      <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    ) : (
+                      <>
+                        <i className="bi bi-send me-1"></i>
+                        Send
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+        <div className="modal-backdrop fade show"></div>
+      </>
+    )}
+
+    {/* Notification Detail Modal */}
+    {selectedNotification && (
+      <>
+        <div className="modal fade show d-block" tabIndex="-1" role="dialog" aria-modal="true" aria-labelledby="notificationTitle">
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title" id="notificationTitle">{selectedNotification.title}</h5>
+                <button type="button" className="btn-close" onClick={() => setSelectedNotification(null)} aria-label="Close"></button>
+              </div>
+              <div className="modal-body">
+                {selectedNotification.coverUrl && (
+                  <div className="ratio ratio-16x9 mb-3 bg-light rounded overflow-hidden">
+                    <img
+                      src={selectedNotification.coverUrl}
+                      alt=""
+                      className="w-100 h-100 object-fit-cover"
+                    />
+                  </div>
+                )}
+                <p className="text-muted small mb-2">
+                  {formatChatTimestamp(selectedNotification.createdAt)}
+                </p>
+                <p className="mb-0" style={{ whiteSpace: "pre-wrap" }}>
+                  {selectedNotification.body}
+                </p>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-primary" onClick={() => setSelectedNotification(null)}>
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="modal-backdrop fade show"></div>
+      </>
+    )}
 
     {/* Settings Modal */}
     {showCancelSubModal && (

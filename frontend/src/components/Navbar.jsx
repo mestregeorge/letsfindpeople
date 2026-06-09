@@ -15,7 +15,6 @@ import {
   subscribeToGlobalChatMessages,
 } from "../lib/chatService";
 import {
-  dismissSiteNotification,
   getUnreadSiteNotificationCount,
   listSiteNotifications,
   markSiteNotificationRead,
@@ -1119,27 +1118,6 @@ function Navbar({ onProfileSave }) {
     }
   };
 
-  const dismissNotification = async (e, notification) => {
-    e.stopPropagation();
-    if (!session?.user) return;
-
-    setNotifications(prev => prev.filter(item => item.id !== notification.id));
-    if (!notification.isRead) {
-      setUnreadNotifications(prev => Math.max(0, prev - 1));
-    }
-    if (selectedNotification?.id === notification.id) {
-      setSelectedNotification(null);
-    }
-
-    try {
-      await dismissSiteNotification(notification.id);
-      loadNotifications({ silent: true });
-    } catch (err) {
-      setNotificationsError(err.message || "Failed to delete notification.");
-      loadNotifications({ silent: true });
-    }
-  };
-
   const handleSubscribe = async (e) => {
     e.preventDefault();
 
@@ -1873,38 +1851,27 @@ function Navbar({ onProfileSave }) {
                     No notifications yet.
                   </div>
                 ) : (
-                  <div className="list-group navbar-notifications-list">
+                  <div className="navbar-notifications-list">
                     {notifications.map((notification) => (
                       <div
                         key={notification.id}
-                        className={`list-group-item rounded-3 navbar-notification-item ${!notification.isRead ? "navbar-notification-item-unread" : ""}`}
+                        className={`navbar-notification-item ${!notification.isRead ? "navbar-notification-item-unread" : ""}`}
                       >
-                        <div className="d-flex align-items-center gap-2">
-                          <button
-                            type="button"
-                            className="btn navbar-notification-open text-start p-0 min-w-0 flex-grow-1"
-                            onClick={() => openNotification(notification)}
-                          >
-                            <div className="d-flex align-items-center justify-content-between gap-2">
-                              <span className="fw-semibold text-truncate">{notification.title}</span>
-                              <small className="text-muted flex-shrink-0">
-                                {formatNotificationTimestamp(notification.createdAt)}
-                              </small>
-                            </div>
-                            <small className="text-muted d-block text-truncate">
-                              {notification.body}
+                        <button
+                          type="button"
+                          className="btn navbar-notification-open text-start p-0 w-100 min-w-0"
+                          onClick={() => openNotification(notification)}
+                        >
+                          <div className="d-flex align-items-center justify-content-between gap-2">
+                            <span className="fw-semibold text-truncate">{notification.title}</span>
+                            <small className="text-muted flex-shrink-0">
+                              {formatNotificationTimestamp(notification.createdAt)}
                             </small>
-                          </button>
-                          <button
-                            type="button"
-                            className="btn btn-link text-danger p-1 flex-shrink-0 navbar-notification-delete"
-                            onClick={(e) => dismissNotification(e, notification)}
-                            aria-label={`Delete notification ${notification.title}`}
-                            title="Delete"
-                          >
-                            <i className="bi bi-trash3"></i>
-                          </button>
-                        </div>
+                          </div>
+                          <small className="text-muted d-block text-truncate">
+                            {notification.body}
+                          </small>
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -2032,13 +1999,6 @@ function Navbar({ onProfileSave }) {
                         >
                           {isOwnMessage ? (
                             <div className="w-75 d-flex flex-column align-items-end">
-                              <button
-                                type="button"
-                                className="btn btn-link p-0 mb-1 text-decoration-none text-body fw-semibold small text-end global-chat-author-link"
-                                onClick={() => openChatAuthorInConsole(message)}
-                              >
-                                {getChatAuthorName(message)}
-                              </button>
                               <div className="rounded-3 p-2 text-break text-white global-chat-message-own">
                                 {message.body}
                               </div>
@@ -2059,15 +2019,15 @@ function Navbar({ onProfileSave }) {
                                 <img
                                   src={message.author?.profileUrl || defaultProfile}
                                   alt={getChatAuthorName(message)}
-                                  width="32"
-                                  height="32"
-                                  className="rounded-circle border global-chat-avatar"
+                                  width="28"
+                                  height="28"
+                                  className="rounded-circle global-chat-avatar"
                                 />
                               </button>
                               <div className="w-75 d-flex flex-column align-items-start">
                                 <button
                                   type="button"
-                                  className="btn btn-link p-0 mb-1 text-decoration-none text-body fw-semibold small global-chat-author-link"
+                                  className="btn btn-link p-0 mb-1 global-chat-author-link"
                                   onClick={() => openChatAuthorInConsole(message)}
                                 >
                                   {getChatAuthorName(message)}

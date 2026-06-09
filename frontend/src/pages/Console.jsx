@@ -183,6 +183,7 @@ export default function Console({ currentUser }) {
     if (!session?.user) {
       setSearchError("You have to login before viewing this user.");
       setSearchResults([]);
+      navigate("/", { replace: true });
       return undefined;
     }
 
@@ -197,11 +198,13 @@ export default function Console({ currentUser }) {
       .then((person) => {
         if (!isMounted) return;
         setSearchResults(person ? [person] : []);
+        navigate("/", { replace: true });
       })
       .catch((err) => {
         if (!isMounted) return;
         setSearchError(err.message || "Failed to load user.");
         setSearchResults([]);
+        navigate("/", { replace: true });
       })
       .finally(() => {
         if (isMounted) setIsSearching(false);

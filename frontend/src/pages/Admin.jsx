@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabaseClient';
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const sanitizePostgrestOrTerm = (value) => value.replace(/[%,()]/g, ' ').trim();
+const CATALOG_CACHE_KEY = 'lfp_catalog';
 
 function Admin() {
   useAuth(); // establishes auth context; no fields needed in this component
@@ -80,6 +81,11 @@ function Admin() {
   const [editingKw, setEditingKw] = useState(null);
   const [editKwName, setEditKwName] = useState('');
   const [editKwSubcategoryId, setEditKwSubcategoryId] = useState('');
+
+  // Add keyword modal state
+  const [showAddKeywordModal, setShowAddKeywordModal] = useState(false);
+  const [newKeywordName, setNewKeywordName] = useState('');
+  const [newKeywordSubcategoryId, setNewKeywordSubcategoryId] = useState('');
 
   // Create charts function
   const createCharts = useCallback(() => {
@@ -653,6 +659,42 @@ function Admin() {
     setKeywordSearch(keywordSearchInput.trim());
   };
 
+  const clearCatalogCache = () => {
+    try {
+      localStorage.removeItem(CATALOG_CACHE_KEY);
+    } catch {
+      // Cache invalidation is best-effort only.
+    }
+  };
+
+  const handleAddKwOpen = () => {
+    setNewKeywordName('');
+    setNewKeywordSubcategoryId('');
+    if (subcategories.length === 0) fetchSubcategories();
+    setShowAddKeywordModal(true);
+  };
+
+  const handleAddKwSave = async () => {
+    const trimmedName = newKeywordName.trim();
+    if (!trimmedName) { alert('Keyword name is required.'); return; }
+    if (!newKeywordSubcategoryId) { alert('Subcategory is required.'); return; }
+    try {
+      const { error } = await supabase
+        .from('keywords')
+        .insert({ name: trimmedName, id_subcategory: parseInt(newKeywordSubcategoryId, 10) });
+      if (error) throw new Error(error.message);
+      clearCatalogCache();
+      Promise.resolve(supabase.rpc('write_log', { p_action: 'ADMIN_ADD_KEYWORD', p_status: 'Success', p_metadata: { keywordName: trimmedName } })).catch(() => {});
+      setShowAddKeywordModal(false);
+      setKeywordSearchInput('');
+      setKeywordSearch('');
+      setCurrentKeywordPage(1);
+      fetchKeywords(1, '');
+    } catch (err) {
+      alert('Failed to add keyword: ' + err.message);
+    }
+  };
+
   // Edit keyword handlers
   const handleEditKwOpen = (kw) => {
     setEditingKw(kw);
@@ -672,6 +714,7 @@ function Admin() {
         .update({ name: editKwName.trim(), id_subcategory: parseInt(editKwSubcategoryId) })
         .eq('id_keyword', editingKw.id);
       if (error) throw new Error(error.message);
+      clearCatalogCache();
       Promise.resolve(supabase.rpc('write_log', { p_action: 'ADMIN_EDIT_KEYWORD', p_status: 'Success', p_metadata: { keywordId: editingKw.id, oldName: editingKw.name, newName: editKwName.trim() } })).catch(() => {});
       setShowEditKeywordModal(false);
       fetchKeywords(currentKeywordPage, keywordSearch);
@@ -686,6 +729,7 @@ function Admin() {
       const kw = keywords.find((k) => k.id === id);
       const { error } = await supabase.from('keywords').delete().eq('id_keyword', id);
       if (error) throw new Error(error.message);
+      clearCatalogCache();
       Promise.resolve(supabase.rpc('write_log', { p_action: 'ADMIN_DELETE_KEYWORD', p_status: 'Success', p_metadata: { keywordId: id, keywordName: kw?.name || null } })).catch(() => {});
       fetchKeywords(currentKeywordPage, keywordSearch);
     } catch (err) {
@@ -732,8 +776,10 @@ function Admin() {
     try {
       const { error } = await supabase.rpc('accept_requested_keyword', { p_id: id });
       if (error) throw new Error(error.message);
+      clearCatalogCache();
       Promise.resolve(supabase.rpc('write_log', { p_action: 'ADMIN_ACCEPT_KEYWORD', p_status: 'Success', p_metadata: { requestedKeywordId: id, keywordName: kw.name } })).catch(() => {});
       fetchRequestedKeywords(currentRequestPage);
+      fetchKeywords(currentKeywordPage, keywordSearch);
     } catch (err) {
       alert('Failed to accept keyword: ' + err.message);
     }
@@ -1154,7 +1200,8 @@ function Admin() {
           )}
 
           {/* Keywords Table */}
-          <div className="d-flex justify-content-end mt-5 mb-4">
+          <div className="d-flex justify-content-between align-items-center gap-3 mt-5 mb-4">
+            <button type="button" className="btn btn-success" onClick={handleAddKwOpen}>Add Keyword</button>
             <div className="input-group" style={{ minWidth: '380px', maxWidth: '380px' }}>
               <input
                 type="text"
@@ -1225,6 +1272,51 @@ function Admin() {
           </>
           )}
         </>
+      )}
+
+      {/* Add Keyword Modal */}
+      {showAddKeywordModal && (
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Add Keyword</h5>
+                <button type="button" className="btn-close" onClick={() => setShowAddKeywordModal(false)}></button>
+              </div>
+              <div className="modal-body">
+                <div className="mb-3">
+                  <label className="form-label">Keyword Name</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={newKeywordName}
+                    onChange={(e) => setNewKeywordName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleAddKwSave(); }}
+                  />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Subcategory</label>
+                  <select
+                    className="form-select"
+                    value={newKeywordSubcategoryId}
+                    onChange={(e) => setNewKeywordSubcategoryId(e.target.value)}
+                  >
+                    <option value="">-- Select a subcategory --</option>
+                    {subcategories.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.categoryName} › {s.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button className="btn btn-secondary" onClick={() => setShowAddKeywordModal(false)}>Cancel</button>
+                <button className="btn btn-primary" onClick={handleAddKwSave}>Save</button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Edit Requested Keyword Modal */}

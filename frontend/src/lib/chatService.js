@@ -2,6 +2,35 @@ import { supabase } from "./supabaseClient";
 
 export const CHAT_RETENTION_DAYS = 7;
 export const CHAT_MAX_MESSAGE_LENGTH = 500;
+export const CHAT_GIF_PREFIX = "[gif]";
+
+function normalizeChatGifUrl(url) {
+  try {
+    const parsedUrl = new URL(String(url || "").trim());
+    return parsedUrl.protocol === "https:" ? parsedUrl.href : "";
+  } catch {
+    return "";
+  }
+}
+
+export function getChatGifUrl(messageBody) {
+  const body = String(messageBody || "").trim();
+  if (!body.startsWith(CHAT_GIF_PREFIX)) return "";
+
+  return normalizeChatGifUrl(body.slice(CHAT_GIF_PREFIX.length));
+}
+
+export function createChatGifMessage(gifUrl) {
+  const url = normalizeChatGifUrl(gifUrl);
+  if (!url) throw new Error("Choose a valid GIF.");
+
+  const body = `${CHAT_GIF_PREFIX}${url}`;
+  if (body.length > CHAT_MAX_MESSAGE_LENGTH) {
+    throw new Error(`GIF link must be ${CHAT_MAX_MESSAGE_LENGTH} characters or fewer.`);
+  }
+
+  return body;
+}
 
 function mapChatMessage(row) {
   return {

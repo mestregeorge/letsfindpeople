@@ -9,11 +9,14 @@ import { updateUserProfile, deleteUser, getUserProfile, uploadProfilePicture } f
 import { requestKeyword } from "../lib/catalogService";
 import {
   CHAT_MAX_MESSAGE_LENGTH,
+  createChatGifMessage,
+  getChatGifUrl,
   listGlobalChatMessages,
   removeGlobalChatSubscription,
   sendGlobalChatMessage,
   subscribeToGlobalChatMessages,
 } from "../lib/chatService";
+import { searchGifs } from "../lib/gifService";
 import {
   getUnreadSiteNotificationCount,
   listSiteNotifications,
@@ -145,6 +148,24 @@ function getChatAuthorName(message) {
   return name || message.author?.email || "Member";
 }
 
+function ChatMessageBody({ body, isOwnMessage }) {
+  const gifUrl = getChatGifUrl(body);
+
+  if (gifUrl) {
+    return (
+      <div className={`rounded-3 overflow-hidden global-chat-gif-bubble ${isOwnMessage ? "global-chat-message-own" : "bg-white border"}`}>
+        <img src={gifUrl} alt="GIF" className="global-chat-gif-image" loading="lazy" />
+      </div>
+    );
+  }
+
+  return (
+    <div className={`rounded-3 p-2 text-break ${isOwnMessage ? "text-white global-chat-message-own" : "bg-white border"}`}>
+      {body}
+    </div>
+  );
+}
+
 function formatNotificationTimestamp(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
@@ -252,7 +273,9 @@ function Navbar({ onProfileSave }) {
   const { session, isAdmin } = useAuth();
   const routerLocation = useLocation();
   const navigate = useNavigate();
+  const loginDropdownRef = useRef(null);
   const loginDropdownToggleRef = useRef(null);
+  const loginDropdownMenuRef = useRef(null);
   const pricingDropdownRef = useRef(null);
   const pricingDropdownMenuRef = useRef(null);
   const notificationsDropdownRef = useRef(null);
@@ -500,6 +523,11 @@ function Navbar({ onProfileSave }) {
   const [chatLoading, setChatLoading] = useState(false);
   const [chatSending, setChatSending] = useState(false);
   const [chatError, setChatError] = useState("");
+  const [showGifPicker, setShowGifPicker] = useState(false);
+  const [gifQuery, setGifQuery] = useState("");
+  const [gifResults, setGifResults] = useState([]);
+  const [gifLoading, setGifLoading] = useState(false);
+  const [gifError, setGifError] = useState("");
   const [notifications, setNotifications] = useState([]);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
@@ -531,6 +559,10 @@ function Navbar({ onProfileSave }) {
       setChatMessages([]);
       setChatDraft("");
       setChatError("");
+      setShowGifPicker(false);
+      setGifQuery("");
+      setGifResults([]);
+      setGifError("");
       setNotifications([]);
       setUnreadNotifications(0);
       setNotificationsError("");
@@ -546,6 +578,45 @@ function Navbar({ onProfileSave }) {
       document.body.style.overflow = previousOverflow;
     };
   }, [isModalOpen]);
+
+  useEffect(() => {
+    const dropdown = loginDropdownRef.current;
+    const menu = loginDropdownMenuRef.current;
+    if (!dropdown || !menu) return;
+    const mobileLoginDropdownQuery = window.matchMedia("(max-width: 991.98px)");
+
+    const updateLoginDropdownOffset = () => {
+      if (!menu.classList.contains("show")) return;
+
+      menu.style.setProperty("--navbar-login-offset-x", "0px");
+      if (!mobileLoginDropdownQuery.matches) return;
+
+      const viewportPadding = 8;
+      const menuRect = menu.getBoundingClientRect();
+      const maxRight = window.innerWidth - viewportPadding;
+      let offsetX = maxRight - menuRect.right;
+
+      if (menuRect.left + offsetX < viewportPadding) {
+        offsetX = viewportPadding - menuRect.left;
+      }
+
+      menu.style.setProperty("--navbar-login-offset-x", `${Math.max(0, offsetX)}px`);
+    };
+
+    const resetLoginDropdownOffset = () => {
+      menu.style.setProperty("--navbar-login-offset-x", "0px");
+    };
+
+    dropdown.addEventListener("shown.bs.dropdown", updateLoginDropdownOffset);
+    dropdown.addEventListener("hidden.bs.dropdown", resetLoginDropdownOffset);
+    window.addEventListener("resize", updateLoginDropdownOffset);
+
+    return () => {
+      dropdown.removeEventListener("shown.bs.dropdown", updateLoginDropdownOffset);
+      dropdown.removeEventListener("hidden.bs.dropdown", resetLoginDropdownOffset);
+      window.removeEventListener("resize", updateLoginDropdownOffset);
+    };
+  }, [session]);
 
   useEffect(() => {
     const dropdown = pricingDropdownRef.current;
@@ -1038,12 +1109,16 @@ function Navbar({ onProfileSave }) {
   const closeGlobalChat = () => {
     setShowChatModal(false);
     setChatDraft("");
+    setShowGifPicker(false);
+    setGifQuery("");
+    setGifError("");
   };
 
   const openChatAuthorInConsole = (message) => {
     if (!message?.userId) return;
     setShowChatModal(false);
     setChatDraft("");
+    setShowGifPicker(false);
     navigate(`/?person=${encodeURIComponent(message.userId)}`);
   };
 
@@ -1071,6 +1146,67 @@ function Navbar({ onProfileSave }) {
       loadGlobalChatMessages({ silent: true });
     } catch (err) {
       setChatError(err.message || "Failed to send message.");
+    } finally {
+      setChatSending(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!showGifPicker || !session?.user?.id) return undefined;
+
+    let isActive = true;
+    const timer = setTimeout(async () => {
+      setGifLoading(true);
+      setGifError("");
+
+      try {
+        const gifs = await searchGifs(gifQuery);
+        if (isActive) setGifResults(gifs);
+      } catch (err) {
+        if (!isActive) return;
+        setGifResults([]);
+        setGifError(err.message || "Failed to load GIFs.");
+      } finally {
+        if (isActive) setGifLoading(false);
+      }
+    }, 300);
+
+    return () => {
+      isActive = false;
+      clearTimeout(timer);
+    };
+  }, [gifQuery, session?.user?.id, showGifPicker]);
+
+  const toggleGifPicker = () => {
+    if (!session?.user) {
+      setChatError("Sign in to send messages.");
+      return;
+    }
+
+    setChatError("");
+    setShowGifPicker(prev => !prev);
+  };
+
+  const handleGifSelect = async (gif) => {
+    if (!session?.user || chatSending) return;
+
+    setChatSending(true);
+    setChatError("");
+
+    try {
+      const body = createChatGifMessage(gif?.url);
+      const message = await sendGlobalChatMessage(body);
+      setShowGifPicker(false);
+      setGifQuery("");
+      setChatDraft("");
+      if (message) {
+        setChatMessages(prev => (
+          prev.some(existing => existing.id === message.id) ? prev : [...prev, message]
+        ));
+      }
+      loadGlobalChatMessages({ silent: true });
+    } catch (err) {
+      setChatError(err.message || "Failed to send GIF.");
     } finally {
       setChatSending(false);
     }
@@ -1733,6 +1869,102 @@ function Navbar({ onProfileSave }) {
         <div className="navbar-collapse" id="navbarNavDropdown">
           <ul className="navbar-nav ms-auto align-items-center">
 
+            {/* Search Button - show when logged in */}
+            {showSearchNav && (
+            <Link className="nav-link" to="/">
+              Go to Search
+            </Link>
+            )}
+
+            {showAdminNav && (
+            <Link className="nav-link" to="/admin">
+              Admin
+            </Link>
+            )}
+
+            {showChatNav && (
+            <div className="nav-item">
+              <button
+                type="button"
+                className="navbar-chat-button"
+                onClick={openGlobalChat}
+                title="International chat"
+                aria-label="Open international chat"
+              >
+                <i className="bi bi-envelope"></i>
+              </button>
+            </div>
+            )}
+
+            {showNotificationsNav && (
+            <div className="dropdown nav-item" ref={notificationsDropdownRef}>
+              <button
+                type="button"
+                className="navbar-chat-button position-relative"
+                data-bs-toggle="dropdown"
+                aria-expanded="false"
+                title="Notifications"
+                aria-label="Open notifications"
+              >
+                <i className="bi bi-bell"></i>
+                {unreadNotifications > 0 && (
+                  <span className="navbar-notification-badge position-absolute badge rounded-pill bg-danger">
+                    {notificationBadgeLabel}
+                    <span className="visually-hidden">unread notifications</span>
+                  </span>
+                )}
+              </button>
+              <div
+                className="dropdown-menu dropdown-menu-end p-3 navbar-dropdown-panel navbar-notifications-dropdown"
+                ref={notificationsDropdownMenuRef}
+              >
+                {!session ? (
+                  <div className="px-3 py-4 text-center text-muted">
+                    <i className="bi bi-person-lock d-block fs-3 mb-2"></i>
+                    Sign in to view notifications.
+                  </div>
+                ) : notificationsLoading ? (
+                  <div className="d-flex justify-content-center align-items-center py-4">
+                    <div className="spinner-border spinner-border-sm text-primary" role="status">
+                      <span className="visually-hidden">Loading...</span>
+                    </div>
+                  </div>
+                ) : notificationsError ? (
+                  <div className="px-3 py-3 text-danger small">{notificationsError}</div>
+                ) : notifications.length === 0 ? (
+                  <div className="px-3 py-4 text-center text-muted">
+                    No notifications yet.
+                  </div>
+                ) : (
+                  <div className="navbar-notifications-list">
+                    {notifications.map((notification) => (
+                      <div
+                        key={notification.id}
+                        className={`navbar-notification-item ${!notification.isRead ? "navbar-notification-item-unread" : ""}`}
+                      >
+                        <button
+                          type="button"
+                          className="btn navbar-notification-open text-start p-0 w-100 min-w-0"
+                          onClick={() => openNotification(notification)}
+                        >
+                          <div className="d-flex align-items-center justify-content-between gap-2">
+                            <span className="fw-semibold text-truncate navbar-notification-title">{notification.title}</span>
+                            <small className="text-muted flex-shrink-0">
+                              {formatNotificationTimestamp(notification.createdAt)}
+                            </small>
+                          </div>
+                          <small className="text-muted d-block text-truncate">
+                            {notification.body}
+                          </small>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+            )}
+
             {/* Pricing Dropdown */}
             {showPricingNav && (
             <div className="dropdown" style={{ position: "relative" }} ref={pricingDropdownRef}>
@@ -1784,102 +2016,6 @@ function Navbar({ onProfileSave }) {
             </div>
             )}
 
-            {/* Search Button - show when logged in */}
-            {showSearchNav && (
-            <Link className="nav-link" to="/">
-              Go to Search
-            </Link>
-            )}
-
-            {showAdminNav && (
-            <Link className="nav-link" to="/admin">
-              Admin
-            </Link>
-            )}
-
-            {showChatNav && (
-            <div className="nav-item">
-              <button
-                type="button"
-                className="navbar-chat-button"
-                onClick={openGlobalChat}
-                title="International chat"
-                aria-label="Open international chat"
-              >
-                <i className="bi bi-envelope"></i>
-              </button>
-            </div>
-            )}
-
-            {showNotificationsNav && (
-            <div className="dropdown nav-item" ref={notificationsDropdownRef}>
-              <button
-                type="button"
-                className="navbar-chat-button position-relative"
-                data-bs-toggle="dropdown"
-                aria-expanded="false"
-                title="Notifications"
-                aria-label="Open notifications"
-              >
-                <i className="bi bi-bell"></i>
-                {unreadNotifications > 0 && (
-                  <span className="navbar-notification-badge position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                    {notificationBadgeLabel}
-                    <span className="visually-hidden">unread notifications</span>
-                  </span>
-                )}
-              </button>
-              <div
-                className="dropdown-menu dropdown-menu-end p-3 navbar-dropdown-panel navbar-notifications-dropdown"
-                ref={notificationsDropdownMenuRef}
-              >
-                {!session ? (
-                  <div className="px-3 py-4 text-center text-muted">
-                    <i className="bi bi-person-lock d-block fs-3 mb-2"></i>
-                    Sign in to view notifications.
-                  </div>
-                ) : notificationsLoading ? (
-                  <div className="d-flex justify-content-center align-items-center py-4">
-                    <div className="spinner-border spinner-border-sm text-primary" role="status">
-                      <span className="visually-hidden">Loading...</span>
-                    </div>
-                  </div>
-                ) : notificationsError ? (
-                  <div className="px-3 py-3 text-danger small">{notificationsError}</div>
-                ) : notifications.length === 0 ? (
-                  <div className="px-3 py-4 text-center text-muted">
-                    No notifications yet.
-                  </div>
-                ) : (
-                  <div className="navbar-notifications-list">
-                    {notifications.map((notification) => (
-                      <div
-                        key={notification.id}
-                        className={`navbar-notification-item ${!notification.isRead ? "navbar-notification-item-unread" : ""}`}
-                      >
-                        <button
-                          type="button"
-                          className="btn navbar-notification-open text-start p-0 w-100 min-w-0"
-                          onClick={() => openNotification(notification)}
-                        >
-                          <div className="d-flex align-items-center justify-content-between gap-2">
-                            <span className="fw-semibold text-truncate">{notification.title}</span>
-                            <small className="text-muted flex-shrink-0">
-                              {formatNotificationTimestamp(notification.createdAt)}
-                            </small>
-                          </div>
-                          <small className="text-muted d-block text-truncate">
-                            {notification.body}
-                          </small>
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-            )}
-
             {/* Meus Dados Dropdown */}
             {session && (
             <div className="dropdown">
@@ -1908,7 +2044,7 @@ function Navbar({ onProfileSave }) {
 
             {/* Iniciar Sessão Dropdown */}
             {!session && (
-            <div className="dropdown">
+            <div className="dropdown" ref={loginDropdownRef}>
               <a
                 className="nav-link dropdown-toggle"
                 href="#"
@@ -1919,7 +2055,7 @@ function Navbar({ onProfileSave }) {
               >
                 Sign Up | Login
               </a>
-              <div className="dropdown-menu dropdown-menu-end p-4 navbar-dropdown-panel navbar-login-dropdown">
+              <div className="dropdown-menu dropdown-menu-end p-4 navbar-dropdown-panel navbar-login-dropdown" ref={loginDropdownMenuRef}>
                 <h5 className="navbar-login-heading">Join and find people with your interests:</h5>
 
                 <div className="mb-3"></div>
@@ -1999,9 +2135,7 @@ function Navbar({ onProfileSave }) {
                         >
                           {isOwnMessage ? (
                             <div className="w-75 d-flex flex-column align-items-end">
-                              <div className="rounded-3 p-2 text-break text-white global-chat-message-own">
-                                {message.body}
-                              </div>
+                              <ChatMessageBody body={message.body} isOwnMessage />
                               {showMessageTime && (
                                 <small className="text-muted mt-1 text-end">
                                   {formatChatTimestamp(message.createdAt)}
@@ -2032,9 +2166,7 @@ function Navbar({ onProfileSave }) {
                                 >
                                   {getChatAuthorName(message)}
                                 </button>
-                                <div className="rounded-3 p-2 text-break bg-white border">
-                                  {message.body}
-                                </div>
+                                <ChatMessageBody body={message.body} isOwnMessage={false} />
                                 {showMessageTime && (
                                   <small className="text-muted mt-1">
                                     {formatChatTimestamp(message.createdAt)}
@@ -2051,9 +2183,73 @@ function Navbar({ onProfileSave }) {
                 )}
               </div>
 
+              {showGifPicker && (
+                <div className="global-chat-gif-picker border-top bg-white">
+                  <div className="input-group input-group-sm mb-2">
+                    <span className="input-group-text bg-white">
+                      <i className="bi bi-search"></i>
+                    </span>
+                    <label htmlFor="globalChatGifSearch" className="visually-hidden">Search GIFs</label>
+                    <input
+                      type="search"
+                      id="globalChatGifSearch"
+                      className="form-control"
+                      placeholder="Search GIFs"
+                      value={gifQuery}
+                      onChange={(e) => setGifQuery(e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      className="btn btn-outline-secondary"
+                      onClick={() => setShowGifPicker(false)}
+                      aria-label="Close GIF picker"
+                      title="Close"
+                    >
+                      <i className="bi bi-x-lg"></i>
+                    </button>
+                  </div>
+
+                  {gifLoading ? (
+                    <div className="d-flex justify-content-center align-items-center global-chat-gif-state">
+                      <span className="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></span>
+                    </div>
+                  ) : gifError ? (
+                    <div className="global-chat-gif-state text-danger small">{gifError}</div>
+                  ) : gifResults.length === 0 ? (
+                    <div className="global-chat-gif-state text-muted small">No GIFs found.</div>
+                  ) : (
+                    <div className="global-chat-gif-grid">
+                      {gifResults.map((gif) => (
+                        <button
+                          key={gif.id}
+                          type="button"
+                          className="global-chat-gif-option"
+                          onClick={() => handleGifSelect(gif)}
+                          disabled={chatSending}
+                          title={gif.title}
+                        >
+                          <img src={gif.previewUrl} alt={gif.title} loading="lazy" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
               <form className="modal-footer" onSubmit={handleChatSubmit}>
                 <div className="input-group">
                   <label htmlFor="globalChatMessage" className="visually-hidden">Message</label>
+                  <button
+                    type="button"
+                    className={`btn btn-outline-secondary global-chat-gif-toggle${showGifPicker ? " active" : ""}`}
+                    onClick={toggleGifPicker}
+                    disabled={!session || chatSending}
+                    aria-label="Search GIFs"
+                    aria-expanded={showGifPicker}
+                    title="GIF"
+                  >
+                    GIF
+                  </button>
                   <input
                     type="text"
                     id="globalChatMessage"

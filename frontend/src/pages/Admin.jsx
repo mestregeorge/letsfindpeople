@@ -5,6 +5,9 @@ import { supabase } from '../lib/supabaseClient';
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const DELETE_ACCOUNT_ACTIONS = ['DELETE_ACCOUNT', 'ADMIN_DELETE_ACCOUNT'];
 const DASHBOARD_START_YEAR = 2026;
+const ADMIN_COMPACT_PAGINATION_QUERY = '(max-width: 991.98px)';
+const DESKTOP_MAX_PAGINATION_PAGES = 10;
+const COMPACT_MAX_PAGINATION_PAGES = 4;
 const sanitizePostgrestOrTerm = (value) => value.replace(/[%,()]/g, ' ').trim();
 const CATALOG_CACHE_KEY = 'lfp_catalog';
 const getCurrentDashboardYear = () => Math.max(DASHBOARD_START_YEAR, new Date().getFullYear());
@@ -14,12 +17,34 @@ const getDashboardYearOptions = () => (
     (_, index) => DASHBOARD_START_YEAR + index
   )
 );
+const getPaginationPageNumbers = (currentPage, totalPages, maxVisiblePages) => {
+  const visiblePages = Math.min(totalPages, maxVisiblePages);
+  const pages = [];
+  const pagesBeforeCurrent = Math.floor((visiblePages - 1) / 2);
+  let startPage = Math.max(1, currentPage - pagesBeforeCurrent);
+  let endPage = Math.min(totalPages, startPage + visiblePages - 1);
+
+  if (endPage - startPage + 1 < visiblePages) {
+    startPage = Math.max(1, endPage - visiblePages + 1);
+  }
+
+  for (let i = startPage; i <= endPage; i++) {
+    pages.push(i);
+  }
+
+  return pages;
+};
 
 function Admin() {
   const [page, setPage] = useState(0);
   const [selectedYear, setSelectedYear] = useState(() => getCurrentDashboardYear());
   const [currentUserPage, setCurrentUserPage] = useState(1);
   const [currentLogPage, setCurrentLogPage] = useState(1);
+  const [isCompactPagination, setIsCompactPagination] = useState(() => (
+    typeof window !== 'undefined'
+    && typeof window.matchMedia === 'function'
+    && window.matchMedia(ADMIN_COMPACT_PAGINATION_QUERY).matches
+  ));
 
   const utilizadoresChartRef = useRef(null);
   const visitsChartRef = useRef(null);
@@ -95,6 +120,9 @@ function Admin() {
   const [showAddKeywordModal, setShowAddKeywordModal] = useState(false);
   const [newKeywordName, setNewKeywordName] = useState('');
   const [newKeywordSubcategoryId, setNewKeywordSubcategoryId] = useState('');
+  const maxPaginationPages = isCompactPagination
+    ? COMPACT_MAX_PAGINATION_PAGES
+    : DESKTOP_MAX_PAGINATION_PAGES;
 
   const createCharts = useCallback(() => {
     Object.values(chartInstancesRef.current).forEach((chart) => {
@@ -701,6 +729,20 @@ function Admin() {
     }
   }, [page, selectedYear, fetchStats]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return undefined;
+
+    const mediaQuery = window.matchMedia(ADMIN_COMPACT_PAGINATION_QUERY);
+    const handleChange = () => setIsCompactPagination(mediaQuery.matches);
+
+    handleChange();
+    mediaQuery.addEventListener('change', handleChange);
+
+    return () => {
+      mediaQuery.removeEventListener('change', handleChange);
+    };
+  }, []);
+
   // Fetch users whenever the Users tab is active or the page/search changes
   useEffect(() => {
     if (page === 1) {
@@ -756,20 +798,7 @@ function Admin() {
   };
 
   const getUserPageNumbers = () => {
-    const totalPages = getTotalUserPages();
-    const pages = [];
-    let startPage = Math.max(1, currentUserPage - 4);
-    let endPage = Math.min(totalPages, startPage + 9);
-    
-    if (endPage - startPage < 9) {
-      startPage = Math.max(1, endPage - 9);
-    }
-    
-    for (let i = startPage; i <= endPage; i++) {
-      pages.push(i);
-    }
-    
-    return pages;
+    return getPaginationPageNumbers(currentUserPage, getTotalUserPages(), maxPaginationPages);
   };
 
   const onUserPageChange = (pageNum) => {
@@ -841,20 +870,7 @@ function Admin() {
   };
 
   const getLogPageNumbers = () => {
-    const totalPages = getTotalLogPages();
-    const pages = [];
-    let startPage = Math.max(1, currentLogPage - 4);
-    let endPage = Math.min(totalPages, startPage + 9);
-    
-    if (endPage - startPage < 9) {
-      startPage = Math.max(1, endPage - 9);
-    }
-    
-    for (let i = startPage; i <= endPage; i++) {
-      pages.push(i);
-    }
-    
-    return pages;
+    return getPaginationPageNumbers(currentLogPage, getTotalLogPages(), maxPaginationPages);
   };
 
   const onLogPageChange = (pageNum) => {
@@ -870,17 +886,7 @@ function Admin() {
   };
 
   const getRequestPageNumbers = () => {
-    const totalPages = getTotalRequestPages();
-    const pages = [];
-    let startPage = Math.max(1, currentRequestPage - 4);
-    let endPage = Math.min(totalPages, startPage + 9);
-    if (endPage - startPage < 9) {
-      startPage = Math.max(1, endPage - 9);
-    }
-    for (let i = startPage; i <= endPage; i++) {
-      pages.push(i);
-    }
-    return pages;
+    return getPaginationPageNumbers(currentRequestPage, getTotalRequestPages(), maxPaginationPages);
   };
 
   const onRequestPageChange = (pageNum) => {
@@ -894,13 +900,7 @@ function Admin() {
   const getTotalKeywordPages = () => Math.max(1, Math.ceil(keywordsTotal / keywordsPerPage));
 
   const getKeywordPageNumbers = () => {
-    const totalPages = getTotalKeywordPages();
-    const pages = [];
-    let startPage = Math.max(1, currentKeywordPage - 4);
-    let endPage = Math.min(totalPages, startPage + 9);
-    if (endPage - startPage < 9) startPage = Math.max(1, endPage - 9);
-    for (let i = startPage; i <= endPage; i++) pages.push(i);
-    return pages;
+    return getPaginationPageNumbers(currentKeywordPage, getTotalKeywordPages(), maxPaginationPages);
   };
 
   const onKeywordPageChange = (pageNum) => {

@@ -1201,7 +1201,6 @@ function Admin() {
 
           {/* Keywords Table */}
           <div className="d-flex justify-content-between align-items-center gap-3 mt-5 mb-4">
-            <button type="button" className="btn btn-success" onClick={handleAddKwOpen}>Add Keyword</button>
             <div className="input-group" style={{ minWidth: '380px', maxWidth: '380px' }}>
               <input
                 type="text"
@@ -1213,6 +1212,14 @@ function Admin() {
               />
               <button type="button" className="btn btn-primary" onClick={handleKeywordSearch}>Search</button>
             </div>
+            <button
+              type="button"
+              className="btn text-white"
+              style={{ backgroundColor: '#6f42c1', borderColor: '#6f42c1' }}
+              onClick={handleAddKwOpen}
+            >
+              Add Keyword
+            </button>
           </div>
 
           {keywordsLoading ? (

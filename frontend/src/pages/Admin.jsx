@@ -835,7 +835,7 @@ function Admin() {
         </aside>
 
         <main className="col admin-content px-3 px-md-4 py-4">
-          <div className="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+          <div className="admin-page-header d-flex flex-wrap align-items-center justify-content-between gap-3">
             <div>
               <h2 className="mb-0 text-start">{currentPageTitle}</h2>
             </div>
@@ -913,8 +913,8 @@ function Admin() {
       {/* Users Tab */}
       {page === 1 && (
         <>
-          <div className="d-flex justify-content-end mb-4">
-            <div className="input-group" style={{ minWidth: '380px', maxWidth: '380px' }}>
+          <div className="admin-toolbar d-flex justify-content-end">
+            <div className="input-group admin-search-group">
               <input
                 type="text"
                 className="form-control"
@@ -944,9 +944,7 @@ function Admin() {
                   <th scope="col">Name</th>
                   <th scope="col">Email</th>
                   <th scope="col">Status</th>
-                  <th scope="col"></th>
-                  <th scope="col"></th>
-                  <th scope="col"></th>
+                  <th scope="col" colSpan={3}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -1037,8 +1035,8 @@ function Admin() {
       {/* Logs Tab */}
       {page === 3 && (
         <>
-          <div className="d-flex justify-content-end mb-4">
-            <div className="input-group" style={{ minWidth: '560px', maxWidth: '560px' }}>
+          <div className="admin-toolbar d-flex justify-content-end">
+            <div className="input-group admin-search-group admin-search-group--wide">
               <select
                 className="form-select"
                 value={logActionId}
@@ -1162,9 +1160,7 @@ function Admin() {
                   <th scope="col">Keyword</th>
                   <th scope="col">Subcategory</th>
                   <th scope="col">Request Amounts</th>
-                  <th scope="col"></th>
-                  <th scope="col"></th>
-                  <th scope="col"></th>
+                  <th scope="col" colSpan={3}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -1237,8 +1233,15 @@ function Admin() {
       {page === 2 && (
         <>
           {/* Keywords Table */}
-          <div className="d-flex justify-content-end align-items-center gap-3 mb-4">
-            <div className="input-group" style={{ minWidth: '380px', maxWidth: '380px' }}>
+          <div className="admin-toolbar d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <button
+              type="button"
+              className="btn text-white admin-add-keyword-btn"
+              onClick={handleAddKwOpen}
+            >
+              Add Keyword
+            </button>
+            <div className="input-group admin-search-group">
               <input
                 type="text"
                 className="form-control"
@@ -1249,14 +1252,6 @@ function Admin() {
               />
               <button type="button" className="btn btn-primary" onClick={handleKeywordSearch}>Search</button>
             </div>
-            <button
-              type="button"
-              className="btn text-white"
-              style={{ backgroundColor: '#6f42c1', borderColor: '#6f42c1' }}
-              onClick={handleAddKwOpen}
-            >
-              Add Keyword
-            </button>
           </div>
 
           {keywordsLoading ? (
@@ -1275,8 +1270,7 @@ function Admin() {
                 <tr>
                   <th scope="col">Keyword</th>
                   <th scope="col">Subcategory</th>
-                  <th scope="col"></th>
-                  <th scope="col"></th>
+                  <th scope="col" colSpan={2}>Actions</th>
                 </tr>
               </thead>
               <tbody>

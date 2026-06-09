@@ -142,18 +142,23 @@
   height: 100%;
   overflow-y: auto;
   overscroll-behavior: contain;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
   scrollbar-width: thin;
   scrollbar-color: rgba(237, 233, 254, 0.48) transparent;
 }
 
 .admin-sidebar-section {
   color: #b9a8ef;
+  letter-spacing: 0;
+  margin-top: 0.25rem;
 }
 
 .admin-sidebar-link {
   border-radius: 0.375rem;
   color: #f5f3ff;
-  padding: 0.65rem 0.85rem;
+  margin-bottom: 0.25rem;
+  padding: 0.75rem 0.95rem;
 }
 
 .admin-sidebar-link:hover,
@@ -174,6 +179,61 @@
   min-width: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
+}
+
+.admin-page-header {
+  margin-bottom: 1.5rem;
+}
+
+.admin-toolbar {
+  margin-bottom: 1.5rem;
+}
+
+.admin-search-group {
+  width: min(100%, 380px);
+}
+
+.admin-search-group--wide {
+  width: min(100%, 560px);
+}
+
+.admin-add-keyword-btn {
+  background-color: #6D28D9;
+  border-color: #6D28D9;
+  min-width: 140px;
+}
+
+.admin-add-keyword-btn:hover,
+.admin-add-keyword-btn:focus {
+  background-color: #5B21B6;
+  border-color: #5B21B6;
+}
+
+.admin-content .table-responsive {
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  background: #ffffff;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
+}
+
+.admin-content .table {
+  margin-bottom: 0;
+}
+
+.admin-content .table thead th {
+  background-color: #6D28D9;
+  color: #ffffff;
+  border-color: #5B21B6;
+  font-weight: 400;
+  vertical-align: middle;
+}
+
+.admin-content .table thead th:first-child {
+  border-top-left-radius: 0.45rem;
+}
+
+.admin-content .table thead th:last-child {
+  border-top-right-radius: 0.45rem;
 }
 
 @media (max-width: 991.98px) {
@@ -200,11 +260,18 @@
   .admin-sidebar-menu {
     height: auto;
     max-height: 40vh;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
   }
 
   .admin-content {
     flex: 1 1 auto;
     min-height: 0;
+  }
+
+  .admin-search-group,
+  .admin-search-group--wide {
+    width: 100%;
   }
 }
 

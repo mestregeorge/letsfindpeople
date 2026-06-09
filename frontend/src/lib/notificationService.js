@@ -111,6 +111,13 @@ export async function markSiteNotificationRead(notificationId) {
   if (error) throw new Error(error.message);
 }
 
+export async function dismissSiteNotification(notificationId) {
+  const { error } = await supabase.rpc("dismiss_site_notification", {
+    p_notification_id: notificationId,
+  });
+  if (error) throw new Error(error.message);
+}
+
 export async function uploadNotificationCover(file) {
   if (!file) throw new Error("Cover image is required.");
   if (!ALLOWED_COVER_TYPES.has(file.type)) {

@@ -15,6 +15,7 @@ import {
   subscribeToGlobalChatMessages,
 } from "../lib/chatService";
 import {
+  dismissSiteNotification,
   getUnreadSiteNotificationCount,
   listSiteNotifications,
   markSiteNotificationRead,
@@ -255,6 +256,8 @@ function Navbar({ onProfileSave }) {
   const loginDropdownToggleRef = useRef(null);
   const pricingDropdownRef = useRef(null);
   const pricingDropdownMenuRef = useRef(null);
+  const notificationsDropdownRef = useRef(null);
+  const notificationsDropdownMenuRef = useRef(null);
   const contactErrorRef = useRef(null);
   const chatMessagesEndRef = useRef(null);
 
@@ -583,6 +586,45 @@ function Navbar({ onProfileSave }) {
       window.removeEventListener("resize", updatePricingDropdownOffset);
     };
   }, [session, savedProfile.subscriptionStatus]);
+
+  useEffect(() => {
+    const dropdown = notificationsDropdownRef.current;
+    const menu = notificationsDropdownMenuRef.current;
+    if (!dropdown || !menu) return;
+    const mobileNotificationsDropdownQuery = window.matchMedia("(max-width: 991.98px)");
+
+    const updateNotificationsDropdownOffset = () => {
+      if (!menu.classList.contains("show")) return;
+
+      menu.style.setProperty("--navbar-notifications-offset-x", "0px");
+      if (!mobileNotificationsDropdownQuery.matches) return;
+
+      const viewportPadding = 8;
+      const menuRect = menu.getBoundingClientRect();
+      const maxRight = window.innerWidth - viewportPadding;
+      let offsetX = maxRight - menuRect.right;
+
+      if (menuRect.left + offsetX < viewportPadding) {
+        offsetX = viewportPadding - menuRect.left;
+      }
+
+      menu.style.setProperty("--navbar-notifications-offset-x", `${Math.max(0, offsetX)}px`);
+    };
+
+    const resetNotificationsDropdownOffset = () => {
+      menu.style.setProperty("--navbar-notifications-offset-x", "0px");
+    };
+
+    dropdown.addEventListener("shown.bs.dropdown", updateNotificationsDropdownOffset);
+    dropdown.addEventListener("hidden.bs.dropdown", resetNotificationsDropdownOffset);
+    window.addEventListener("resize", updateNotificationsDropdownOffset);
+
+    return () => {
+      dropdown.removeEventListener("shown.bs.dropdown", updateNotificationsDropdownOffset);
+      dropdown.removeEventListener("hidden.bs.dropdown", resetNotificationsDropdownOffset);
+      window.removeEventListener("resize", updateNotificationsDropdownOffset);
+    };
+  }, [showNotificationsNav]);
 
   // Hydrate all profile state from DB once session + catalog are both ready
   useEffect(() => {
@@ -1067,6 +1109,27 @@ function Navbar({ onProfileSave }) {
       loadNotifications({ silent: true });
     } catch (err) {
       setNotificationsError(err.message || "Failed to update notification.");
+    }
+  };
+
+  const dismissNotification = async (e, notification) => {
+    e.stopPropagation();
+    if (!session?.user) return;
+
+    setNotifications(prev => prev.filter(item => item.id !== notification.id));
+    if (!notification.isRead) {
+      setUnreadNotifications(prev => Math.max(0, prev - 1));
+    }
+    if (selectedNotification?.id === notification.id) {
+      setSelectedNotification(null);
+    }
+
+    try {
+      await dismissSiteNotification(notification.id);
+      loadNotifications({ silent: true });
+    } catch (err) {
+      setNotificationsError(err.message || "Failed to delete notification.");
+      loadNotifications({ silent: true });
     }
   };
 
@@ -1764,7 +1827,7 @@ function Navbar({ onProfileSave }) {
             )}
 
             {showNotificationsNav && (
-            <div className="dropdown nav-item">
+            <div className="dropdown nav-item" ref={notificationsDropdownRef}>
               <button
                 type="button"
                 className="navbar-chat-button position-relative"
@@ -1781,7 +1844,10 @@ function Navbar({ onProfileSave }) {
                   </span>
                 )}
               </button>
-              <div className="dropdown-menu dropdown-menu-end p-0 navbar-dropdown-panel navbar-notifications-dropdown">
+              <div
+                className="dropdown-menu dropdown-menu-end p-0 navbar-dropdown-panel navbar-notifications-dropdown"
+                ref={notificationsDropdownMenuRef}
+              >
                 {!session ? (
                   <div className="px-3 py-4 text-center text-muted">
                     <i className="bi bi-person-lock d-block fs-3 mb-2"></i>
@@ -1800,16 +1866,18 @@ function Navbar({ onProfileSave }) {
                     No notifications yet.
                   </div>
                 ) : (
-                  <div className="list-group list-group-flush">
+                  <div className="list-group list-group-flush navbar-notifications-list">
                     {notifications.map((notification) => (
-                      <button
+                      <div
                         key={notification.id}
-                        type="button"
-                        className={`list-group-item list-group-item-action ${!notification.isRead ? "navbar-notification-item-unread" : ""}`}
-                        onClick={() => openNotification(notification)}
+                        className={`list-group-item ${!notification.isRead ? "navbar-notification-item-unread" : ""}`}
                       >
                         <div className="d-flex align-items-center gap-2">
-                          <div className="min-w-0 flex-grow-1">
+                          <button
+                            type="button"
+                            className="btn btn-link text-body text-decoration-none text-start p-0 min-w-0 flex-grow-1"
+                            onClick={() => openNotification(notification)}
+                          >
                             <div className="d-flex align-items-center justify-content-between gap-2">
                               <span className="fw-semibold text-truncate">{notification.title}</span>
                               <small className="text-muted flex-shrink-0">
@@ -1819,9 +1887,18 @@ function Navbar({ onProfileSave }) {
                             <small className="text-muted d-block text-truncate">
                               {notification.body}
                             </small>
-                          </div>
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-outline-danger btn-sm flex-shrink-0"
+                            onClick={(e) => dismissNotification(e, notification)}
+                            aria-label={`Delete notification ${notification.title}`}
+                            title="Delete"
+                          >
+                            <i className="bi bi-trash"></i>
+                          </button>
                         </div>
-                      </button>
+                      </div>
                     ))}
                   </div>
                 )}
@@ -1937,39 +2014,46 @@ function Navbar({ onProfileSave }) {
                   </div>
                 ) : (
                   <div className="d-flex flex-column gap-3">
-                    {chatMessages.map((message) => {
+                    {chatMessages.map((message, index) => {
                       const isOwnMessage = message.author?.email === session?.user?.email;
+                      const nextMessage = chatMessages[index + 1];
+                      const showMessageTime = !nextMessage || nextMessage.userId !== message.userId;
                       return (
                         <div
                           key={message.id}
-                          className={`d-flex gap-2 ${isOwnMessage ? "justify-content-end" : "justify-content-start"}`}
+                          className={`d-flex ${isOwnMessage ? "justify-content-end" : "justify-content-start gap-2 align-items-start"}`}
                         >
-                          {!isOwnMessage && (
-                            <img
-                              src={message.author?.profileUrl || defaultProfile}
-                              alt=""
-                              width="32"
-                              height="32"
-                              className="rounded-circle border object-fit-cover flex-shrink-0"
-                            />
-                          )}
-                          <div className="w-75">
-                            <div className={`d-flex gap-2 align-items-center mb-1 ${isOwnMessage ? "justify-content-end text-end" : ""}`}>
-                              <span className="fw-semibold text-truncate">{getChatAuthorName(message)}</span>
-                              <span className="small text-muted flex-shrink-0">{formatChatTimestamp(message.createdAt)}</span>
+                          {isOwnMessage ? (
+                            <div className="w-75 d-flex flex-column align-items-end">
+                              <div className="rounded-3 p-2 text-break text-white global-chat-message-own">
+                                {message.body}
+                              </div>
+                              {showMessageTime && (
+                                <small className="text-muted mt-1 text-end">
+                                  {formatChatTimestamp(message.createdAt)}
+                                </small>
+                              )}
                             </div>
-                            <div className={`rounded-3 p-2 text-break ${isOwnMessage ? "bg-primary text-white" : "bg-white border"}`}>
-                              {message.body}
-                            </div>
-                          </div>
-                          {isOwnMessage && (
-                            <img
-                              src={message.author?.profileUrl || savedProfile.profileImagePreview || defaultProfile}
-                              alt=""
-                              width="32"
-                              height="32"
-                              className="rounded-circle border object-fit-cover flex-shrink-0"
-                            />
+                          ) : (
+                            <>
+                              <img
+                                src={message.author?.profileUrl || defaultProfile}
+                                alt={getChatAuthorName(message)}
+                                width="32"
+                                height="32"
+                                className="rounded-circle border object-fit-cover flex-shrink-0"
+                              />
+                              <div className="w-75 d-flex flex-column align-items-start">
+                                <div className="rounded-3 p-2 text-break bg-white border">
+                                  {message.body}
+                                </div>
+                                {showMessageTime && (
+                                  <small className="text-muted mt-1">
+                                    {formatChatTimestamp(message.createdAt)}
+                                  </small>
+                                )}
+                              </div>
+                            </>
                           )}
                         </div>
                       );
@@ -2027,10 +2111,13 @@ function Navbar({ onProfileSave }) {
         <div className="modal fade show d-block" tabIndex="-1" role="dialog" aria-modal="true" aria-label="Notification details">
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
-              <div className="modal-header border-0 justify-content-end">
+              <div className="modal-header">
+                <span className="text-muted small">
+                  {formatChatTimestamp(selectedNotification.createdAt)}
+                </span>
                 <button type="button" className="btn-close" onClick={() => setSelectedNotification(null)} aria-label="Close"></button>
               </div>
-              <div className="modal-body pt-0">
+              <div className="modal-body">
                 {selectedNotification.coverUrl && (
                   <div className="ratio ratio-16x9 mb-3 bg-light rounded overflow-hidden">
                     <img
@@ -2040,8 +2127,8 @@ function Navbar({ onProfileSave }) {
                     />
                   </div>
                 )}
-                <p className="text-muted small mb-2">
-                  {formatChatTimestamp(selectedNotification.createdAt)}
+                <p className="fw-semibold mb-2">
+                  {selectedNotification.title}
                 </p>
                 <p className="mb-0" style={{ whiteSpace: "pre-wrap" }}>
                   {selectedNotification.body}

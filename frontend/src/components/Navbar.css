@@ -78,17 +78,19 @@
 }
 
 .navbar-notifications-dropdown {
+  --navbar-notifications-offset-x: 0px;
   width: 280px;
   min-width: 280px;
   max-height: calc(100vh - 5rem);
   overflow-y: auto;
+  margin-bottom: 0.75rem;
 }
 
 .navbar-notification-badge {
-  font-size: 0.45rem;
-  line-height: 0.65rem;
-  min-width: 0.75rem;
-  padding: 0.05rem 0.2rem;
+  font-size: 0.65rem;
+  line-height: 0.8rem;
+  min-width: 1rem;
+  padding: 0.1rem 0.28rem;
 }
 
 .navbar-notification-item-unread {
@@ -103,6 +105,16 @@
 
 .navbar-notifications-dropdown .min-w-0 {
   min-width: 0;
+}
+
+.navbar-notifications-list {
+  max-height: 13.5rem;
+  overflow-y: auto;
+  padding-bottom: 0.5rem;
+}
+
+.global-chat-message-own {
+  background-color: #6D28D9;
 }
 
 .navbar-login-heading {
@@ -248,7 +260,7 @@
     min-width: 0;
     max-height: none;
     overflow-y: visible;
-    transform: none !important;
+    transform: translateX(var(--navbar-notifications-offset-x)) !important;
   }
 }
 
@@ -269,6 +281,13 @@
 }
 
 @media (max-width: 575.98px) {
+  .navbar-notification-badge {
+    font-size: 0.45rem;
+    line-height: 0.65rem;
+    min-width: 0.75rem;
+    padding: 0.05rem 0.2rem;
+  }
+
   .navbar-brand-text {
     display: none;
   }

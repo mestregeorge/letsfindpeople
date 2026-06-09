@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Chart, registerables } from 'chart.js';
-import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabaseClient';
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -8,7 +7,6 @@ const sanitizePostgrestOrTerm = (value) => value.replace(/[%,()]/g, ' ').trim();
 const CATALOG_CACHE_KEY = 'lfp_catalog';
 
 function Admin() {
-  useAuth(); // establishes auth context; no fields needed in this component
   const [page, setPage] = useState(0);
   const [selectedYear, setSelectedYear] = useState(2026);
   const [currentUserPage, setCurrentUserPage] = useState(1);
@@ -446,9 +444,9 @@ function Admin() {
     }
   }, [page, currentLogPage, logActionId, logDate, fetchLogs, fetchLogActions, logActions.length]);
 
-  // Fetch requested keywords whenever the Keywords tab is active or request page changes
+  // Fetch requested keywords whenever the Requests tab is active or request page changes
   useEffect(() => {
-    if (page === 2) {
+    if (page === 4) {
       fetchRequestedKeywords(currentRequestPage);
     }
   }, [page, currentRequestPage, fetchRequestedKeywords]);
@@ -805,36 +803,40 @@ function Admin() {
     { id: 0, label: 'Dashboard' },
     { id: 1, label: 'Users' },
     { id: 2, label: 'Keywords' },
+    { id: 4, label: 'Requests' },
     { id: 3, label: 'Logs' },
   ];
   const currentPageTitle = adminNavItems.find((item) => item.id === page)?.label || 'Dashboard';
 
   return (
-    <div className="container-fluid px-3 px-md-4 py-4 py-lg-5">
-      <div className="row g-4">
-        <aside className="col-12 col-lg-3 col-xl-2">
-          <div className="border rounded bg-body p-3 sticky-lg-top">
-            <p className="text-uppercase text-muted small fw-semibold mb-3">Admin</p>
-            <nav className="nav nav-pills flex-column gap-2" aria-label="Admin sections">
-              {adminNavItems.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  className={`nav-link text-start ${page === item.id ? 'active' : ''}`}
-                  aria-current={page === item.id ? 'page' : undefined}
-                  onClick={() => setPage(item.id)}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </nav>
+    <div className="container-fluid admin-shell px-0">
+      <div className="row g-0 admin-layout">
+        <aside className="admin-sidebar-column col-12 col-lg-auto">
+          <div className="admin-sidebar d-flex flex-column text-white">
+            <div className="admin-sidebar-menu flex-grow-1 py-4">
+              <p className="admin-sidebar-section text-uppercase small fw-semibold mb-2 px-3">
+                Menus
+              </p>
+              <nav className="nav flex-column gap-1 px-2" aria-label="Admin sections">
+                {adminNavItems.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className={`admin-sidebar-link nav-link text-start w-100 ${page === item.id ? 'active' : ''}`}
+                    aria-current={page === item.id ? 'page' : undefined}
+                    onClick={() => setPage(item.id)}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </nav>
+            </div>
           </div>
         </aside>
 
-        <main className="col-12 col-lg-9 col-xl-10">
+        <main className="col admin-content px-3 px-md-4 py-4">
           <div className="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
             <div>
-              <p className="text-uppercase text-muted small fw-semibold mb-1">Admin panel</p>
               <h2 className="mb-0 text-start">{currentPageTitle}</h2>
             </div>
           </div>
@@ -1140,8 +1142,8 @@ function Admin() {
         </>
       )}
 
-      {/* Keywords Tab */}
-      {page === 2 && (
+      {/* Requests Tab */}
+      {page === 4 && (
         <>
           {requestedKeywordsLoading ? (
             <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '200px' }}>
@@ -1228,9 +1230,14 @@ function Admin() {
           </nav>
           </>
           )}
+        </>
+      )}
 
+      {/* Keywords Tab */}
+      {page === 2 && (
+        <>
           {/* Keywords Table */}
-          <div className="d-flex justify-content-end align-items-center gap-3 mt-5 mb-4">
+          <div className="d-flex justify-content-end align-items-center gap-3 mb-4">
             <div className="input-group" style={{ minWidth: '380px', maxWidth: '380px' }}>
               <input
                 type="text"

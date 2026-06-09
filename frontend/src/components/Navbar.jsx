@@ -7,6 +7,7 @@ import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabaseClient";
 import { updateUserProfile, deleteUser, getUserProfile, uploadProfilePicture } from "../lib/userService";
 import { requestKeyword } from "../lib/catalogService";
+import { SHOW_ALL_NAV } from "../lib/runtimeFlags";
 
 import "./Navbar.css";
 
@@ -1465,6 +1466,16 @@ function Navbar({ onProfileSave }) {
     () => getBasicPlanPrice(savedProfile.location),
     [savedProfile.location]
   );
+  const showPricingNav = SHOW_ALL_NAV || (
+    session &&
+    savedProfile.idType !== 2 &&
+    !["active", "canceling"].includes(savedProfile.subscriptionStatus)
+  );
+  const showSearchNav = (SHOW_ALL_NAV || session) && routerLocation.pathname !== "/";
+  const showAdminNav = (
+    SHOW_ALL_NAV ||
+    (session && savedProfile.idType === 2)
+  ) && routerLocation.pathname !== "/admin";
 
   return (
     <>
@@ -1477,8 +1488,8 @@ function Navbar({ onProfileSave }) {
         <div className="navbar-collapse" id="navbarNavDropdown">
           <ul className="navbar-nav ms-auto align-items-center">
 
-            {/* Pricing Dropdown - only show when logged in and subscription is not active or canceling */}
-            {session && savedProfile.idType !== 2 && !["active", "canceling"].includes(savedProfile.subscriptionStatus) && (
+            {/* Pricing Dropdown - normally gated; SHOW_ALL_NAV only reveals the UI locally. */}
+            {showPricingNav && (
             <div className="dropdown" style={{ position: "relative" }} ref={pricingDropdownRef}>
               <a className="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                 Pricing
@@ -1529,14 +1540,14 @@ function Navbar({ onProfileSave }) {
             )}
 
             {/* Search Button - show when logged in */}
-            {session && routerLocation.pathname !== "/" && (
+            {showSearchNav && (
             <Link className="nav-link" to="/">
               Go to Search
             </Link>
             )}
 
-            {/* Admin Button - show when logged in and user is admin */}
-            {session && savedProfile.idType === 2 && routerLocation.pathname !== "/admin" && (
+            {/* Admin link visibility can be previewed, but /admin stays protected by AdminRoute. */}
+            {showAdminNav && (
             <Link className="nav-link" to="/admin">
               Admin
             </Link>

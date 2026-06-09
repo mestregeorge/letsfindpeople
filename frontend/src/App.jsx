@@ -156,6 +156,33 @@ function AuthCallback() {
   );
 }
 
+function AppFrame({ savedProfile, setSavedProfile }) {
+  const { pathname } = useLocation();
+  const isAdminPage = pathname === "/admin";
+
+  return (
+    <div className={`app-wrapper ${isAdminPage ? "app-wrapper--admin" : ""}`}>
+      <Navbar onProfileSave={setSavedProfile} />
+      <main className="app-content">
+        <Routes>
+          <Route path="/" element={<Console currentUser={savedProfile} />} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
+          <Route path="/account-deleted" element={<ErrorPage type="accountDeleted" />} />
+          <Route path="/console" element={<ErrorPage type="notFound" />} />
+          <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/cookies" element={<Cookies />} />
+          <Route path="/refunds" element={<Refunds />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="*" element={<ErrorPage type="notFound" />} />
+        </Routes>
+      </main>
+      {!isAdminPage && <Footer />}
+    </div>
+  );
+}
+
 function App() {
   const [savedProfile, setSavedProfile] = useState(null);
 
@@ -166,25 +193,7 @@ function App() {
           <HeadManager />
           <ScrollToTop />
           <AuthRedirectHandler />
-          <div className="app-wrapper">
-            <Navbar onProfileSave={setSavedProfile} />
-            <main className="app-content">
-              <Routes>
-                <Route path="/" element={<Console currentUser={savedProfile} />} />
-                <Route path="/auth/callback" element={<AuthCallback />} />
-                <Route path="/account-deleted" element={<ErrorPage type="accountDeleted" />} />
-                <Route path="/console" element={<ErrorPage type="notFound" />} />
-                <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
-                <Route path="/privacy" element={<Privacy />} />
-                <Route path="/terms" element={<Terms />} />
-                <Route path="/cookies" element={<Cookies />} />
-                <Route path="/refunds" element={<Refunds />} />
-                <Route path="/contact" element={<Contact />} />
-                <Route path="*" element={<ErrorPage type="notFound" />} />
-              </Routes>
-            </main>
-            <Footer />
-          </div>
+          <AppFrame savedProfile={savedProfile} setSavedProfile={setSavedProfile} />
         </BrowserRouter>
       </DbDataProvider>
     </AuthProvider>

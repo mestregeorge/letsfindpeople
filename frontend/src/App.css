@@ -8,6 +8,17 @@
   flex: 1;
 }
 
+.app-wrapper--admin {
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.app-wrapper--admin .app-content {
+  min-height: 0;
+  overflow: hidden;
+}
+
 .policy-page {
   max-width: 900px;
 }
@@ -98,6 +109,103 @@
 
 .modal-scroll-area::-webkit-scrollbar-track {
   background: transparent;
+}
+
+.admin-shell {
+  --admin-sidebar-width: 220px;
+  background: #f8f9fa;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.admin-layout {
+  height: 100%;
+  min-height: 0;
+}
+
+.admin-sidebar-column {
+  flex: 0 0 var(--admin-sidebar-width);
+  height: 100%;
+  width: var(--admin-sidebar-width);
+}
+
+.admin-sidebar {
+  background: #5238A5;
+  border-right: 1px solid #6F52CC;
+  height: 100%;
+  overflow: hidden;
+  width: var(--admin-sidebar-width);
+}
+
+.admin-sidebar-menu {
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(237, 233, 254, 0.48) transparent;
+}
+
+.admin-sidebar-section {
+  color: #b9a8ef;
+}
+
+.admin-sidebar-link {
+  border-radius: 0.375rem;
+  color: #f5f3ff;
+  padding: 0.65rem 0.85rem;
+}
+
+.admin-sidebar-link:hover,
+.admin-sidebar-link:focus {
+  background: #6246BD;
+  color: #ffffff;
+}
+
+.admin-sidebar-link.active {
+  background: #7552D8 !important;
+  box-shadow: none;
+  color: #ffffff !important;
+  font-weight: 700;
+}
+
+.admin-content {
+  height: 100%;
+  min-width: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+@media (max-width: 991.98px) {
+  .app-wrapper--admin {
+    overflow: hidden;
+  }
+
+  .admin-layout {
+    flex-direction: column;
+    flex-wrap: nowrap;
+  }
+
+  .admin-sidebar-column {
+    flex: 0 0 auto;
+    height: auto;
+    width: 100%;
+  }
+
+  .admin-sidebar {
+    height: auto;
+    width: 100%;
+  }
+
+  .admin-sidebar-menu {
+    height: auto;
+    max-height: 40vh;
+  }
+
+  .admin-content {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
 }
 
 /* Base style */

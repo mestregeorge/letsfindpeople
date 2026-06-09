@@ -108,6 +108,7 @@ function Admin() {
         legend: {
           display: true,
           position: 'bottom',
+          onClick: () => {},
           labels: {
             boxWidth: 12,
             boxHeight: 12,
@@ -130,77 +131,80 @@ function Admin() {
         }
       }
     };
+    const lineDataset = ({ label, data, color, fillColor, yAxisID, order = 1 }) => ({
+      type: 'line',
+      label,
+      data,
+      borderColor: color,
+      backgroundColor: fillColor,
+      borderWidth: 3,
+      pointBackgroundColor: color,
+      pointBorderColor: '#ffffff',
+      pointBorderWidth: 2,
+      pointRadius: 4,
+      pointHoverRadius: 6,
+      tension: 0.35,
+      fill: true,
+      yAxisID,
+      order
+    });
+    const blueLine = {
+      color: '#0284c7',
+      fillColor: 'rgba(14, 165, 233, 0.12)'
+    };
+    const purpleLine = {
+      color: '#6D28D9',
+      fillColor: 'rgba(109, 40, 217, 0.1)'
+    };
+    const redLine = {
+      color: '#dc2626',
+      fillColor: 'rgba(239, 68, 68, 0.1)'
+    };
 
     if (utilizadoresChartRef.current) {
       const ctx = utilizadoresChartRef.current.getContext('2d');
       chartInstancesRef.current.utilizadores = new Chart(ctx, {
-        type: 'bar',
+        type: 'line',
         data: {
           labels: MONTH_LABELS,
           datasets: [
-            {
-              type: 'line',
+            lineDataset({
               label: 'Active users',
               data: statsChartData.users.active,
-              borderColor: '#6D28D9',
-              backgroundColor: 'rgba(109, 40, 217, 0.12)',
-              borderWidth: 3,
-              pointBackgroundColor: '#6D28D9',
-              pointBorderColor: '#ffffff',
-              pointBorderWidth: 2,
-              pointRadius: 4,
-              pointHoverRadius: 6,
-              tension: 0.35,
-              fill: true,
-              yAxisID: 'active',
+              color: purpleLine.color,
+              fillColor: purpleLine.fillColor,
+              yAxisID: 'users',
               order: 1
-            },
-            {
+            }),
+            lineDataset({
               label: 'New users',
               data: statsChartData.users.new,
-              backgroundColor: 'rgba(34, 197, 94, 0.78)',
-              borderColor: '#16a34a',
-              borderWidth: 1,
-              borderRadius: 6,
-              yAxisID: 'movement',
-              stack: 'movement',
+              color: blueLine.color,
+              fillColor: blueLine.fillColor,
+              yAxisID: 'users',
               order: 2
-            },
-            {
+            }),
+            lineDataset({
               label: 'Users left',
-              data: statsChartData.users.left.map((value) => -value),
-              backgroundColor: 'rgba(239, 68, 68, 0.78)',
-              borderColor: '#dc2626',
-              borderWidth: 1,
-              borderRadius: 6,
-              yAxisID: 'movement',
-              stack: 'movement',
+              data: statsChartData.users.left,
+              color: redLine.color,
+              fillColor: redLine.fillColor,
+              yAxisID: 'users',
               order: 2
-            }
+            })
           ]
         },
         options: {
           ...baseOptions,
           scales: {
             x: {
-              stacked: true,
               grid: { display: false },
               ticks: { color: labelColor }
             },
-            movement: {
+            users: {
               position: 'left',
-              stacked: true,
-              grid: { color: gridColor },
-              ticks: {
-                color: labelColor,
-                precision: 0,
-                callback: (value) => Math.abs(Number(value)).toLocaleString('pt-PT')
-              }
-            },
-            active: {
-              position: 'right',
               beginAtZero: true,
-              grid: { drawOnChartArea: false },
+              grid: { color: gridColor },
               ticks: {
                 color: labelColor,
                 precision: 0
@@ -214,35 +218,26 @@ function Admin() {
     if (visitsChartRef.current) {
       const ctx = visitsChartRef.current.getContext('2d');
       chartInstancesRef.current.visits = new Chart(ctx, {
-        type: 'bar',
+        type: 'line',
         data: {
           labels: MONTH_LABELS,
           datasets: [
-            {
+            lineDataset({
               label: 'Views',
               data: statsChartData.visits.total,
-              backgroundColor: 'rgba(14, 165, 233, 0.72)',
-              borderColor: '#0284c7',
-              borderWidth: 1,
-              borderRadius: 6,
-              yAxisID: 'views',
-              order: 2
-            },
-            {
-              type: 'line',
-              label: 'Unique views',
-              data: statsChartData.visits.unique,
-              borderColor: '#6D28D9',
-              backgroundColor: 'rgba(109, 40, 217, 0.1)',
-              borderWidth: 3,
-              pointBackgroundColor: '#6D28D9',
-              pointBorderColor: '#ffffff',
-              pointBorderWidth: 2,
-              pointRadius: 4,
-              tension: 0.35,
+              color: purpleLine.color,
+              fillColor: purpleLine.fillColor,
               yAxisID: 'views',
               order: 1
-            }
+            }),
+            lineDataset({
+              label: 'Unique views',
+              data: statsChartData.visits.unique,
+              color: blueLine.color,
+              fillColor: blueLine.fillColor,
+              yAxisID: 'views',
+              order: 2
+            })
           ]
         },
         options: {
@@ -268,35 +263,26 @@ function Admin() {
     if (rendimentoChartRef.current) {
       const ctx = rendimentoChartRef.current.getContext('2d');
       chartInstancesRef.current.rendimento = new Chart(ctx, {
-        type: 'bar',
+        type: 'line',
         data: {
           labels: MONTH_LABELS,
           datasets: [
-            {
-              label: 'Monthly revenue',
-              data: statsChartData.revenue,
-              backgroundColor: 'rgba(20, 184, 166, 0.72)',
-              borderColor: '#0f766e',
-              borderWidth: 1,
-              borderRadius: 6,
-              yAxisID: 'money',
-              order: 2
-            },
-            {
-              type: 'line',
-              label: 'Cumulative revenue',
+            lineDataset({
+              label: 'Total revenue',
               data: statsChartData.revenueCumulative,
-              borderColor: '#6D28D9',
-              backgroundColor: 'rgba(109, 40, 217, 0.1)',
-              borderWidth: 3,
-              pointBackgroundColor: '#6D28D9',
-              pointBorderColor: '#ffffff',
-              pointBorderWidth: 2,
-              pointRadius: 4,
-              tension: 0.35,
+              color: purpleLine.color,
+              fillColor: purpleLine.fillColor,
               yAxisID: 'money',
               order: 1
-            }
+            }),
+            lineDataset({
+              label: 'Monthly revenue',
+              data: statsChartData.revenue,
+              color: blueLine.color,
+              fillColor: blueLine.fillColor,
+              yAxisID: 'money',
+              order: 2
+            })
           ]
         },
         options: {
@@ -333,35 +319,26 @@ function Admin() {
     if (pagamentosChartRef.current) {
       const ctx = pagamentosChartRef.current.getContext('2d');
       chartInstancesRef.current.pagamentos = new Chart(ctx, {
-        type: 'bar',
+        type: 'line',
         data: {
           labels: MONTH_LABELS,
           datasets: [
-            {
-              label: 'Monthly payments',
-              data: statsChartData.payments,
-              backgroundColor: 'rgba(245, 158, 11, 0.78)',
-              borderColor: '#d97706',
-              borderWidth: 1,
-              borderRadius: 6,
-              yAxisID: 'payments',
-              order: 2
-            },
-            {
-              type: 'line',
-              label: 'Cumulative payments',
+            lineDataset({
+              label: 'Total payments',
               data: statsChartData.paymentsCumulative,
-              borderColor: '#6D28D9',
-              backgroundColor: 'rgba(109, 40, 217, 0.1)',
-              borderWidth: 3,
-              pointBackgroundColor: '#6D28D9',
-              pointBorderColor: '#ffffff',
-              pointBorderWidth: 2,
-              pointRadius: 4,
-              tension: 0.35,
+              color: purpleLine.color,
+              fillColor: purpleLine.fillColor,
               yAxisID: 'payments',
               order: 1
-            }
+            }),
+            lineDataset({
+              label: 'Monthly payments',
+              data: statsChartData.payments,
+              color: blueLine.color,
+              fillColor: blueLine.fillColor,
+              yAxisID: 'payments',
+              order: 2
+            })
           ]
         },
         options: {
@@ -738,30 +715,6 @@ function Admin() {
       if (pagamentosChart) pagamentosChart.destroy();
     };
   }, [createCharts, page]);
-
-  const getTotalUtilizadores = () => {
-    const data = statsChartData?.users?.active;
-    if (!data || data.length === 0) return 0;
-    return data[data.length - 1];
-  };
-
-  const getTotalRendimento = () => {
-    const data = statsChartData?.revenue;
-    if (!data || data.length === 0) return 0;
-    return data.reduce((a, b) => a + b, 0);
-  };
-
-  const getTotalPagamentos = () => {
-    const data = statsChartData?.payments;
-    if (!data || data.length === 0) return 0;
-    return data.reduce((a, b) => a + b, 0);
-  };
-
-  const getTotalVisits = () => {
-    const data = statsChartData?.visits?.total;
-    if (!data || data.length === 0) return 0;
-    return data.reduce((a, b) => a + b, 0);
-  };
 
   // User pagination methods (server-side)
   const getTotalUserPages = () => {
@@ -1140,7 +1093,6 @@ function Admin() {
               <div className="card h-100">
                 <div className="card-body">
                   <h2 className="card-title">Revenue</h2>
-                  <h4 className="card-text mb-3">Total ({selectedYear}): €{getTotalRendimento().toLocaleString('pt-PT')}</h4>
                   <div style={{ height: '250px' }}>
                     <canvas ref={rendimentoChartRef}></canvas>
                   </div>
@@ -1152,7 +1104,6 @@ function Admin() {
               <div className="card h-100">
                 <div className="card-body">
                   <h2 className="card-title">Payments</h2>
-                  <h4 className="card-text mb-3">Total ({selectedYear}): {getTotalPagamentos()}</h4>
                   <div style={{ height: '250px' }}>
                     <canvas ref={pagamentosChartRef}></canvas>
                   </div>
@@ -1166,7 +1117,6 @@ function Admin() {
               <div className="card h-100">
                 <div className="card-body">
                   <h2 className="card-title">Users</h2>
-                  <h4 className="card-text mb-3">Total ({selectedYear}): {getTotalUtilizadores().toLocaleString('pt-PT')}</h4>
                   <div style={{ height: '250px' }}>
                     <canvas ref={utilizadoresChartRef}></canvas>
                   </div>
@@ -1177,8 +1127,7 @@ function Admin() {
             <div className="col-md-6">
               <div className="card h-100">
                 <div className="card-body">
-                  <h2 className="card-title">Visits</h2>
-                  <h4 className="card-text mb-3">Total ({selectedYear}): {getTotalVisits().toLocaleString('pt-PT')}</h4>
+                  <h2 className="card-title">Views</h2>
                   <div style={{ height: '250px' }}>
                     <canvas ref={visitsChartRef}></canvas>
                   </div>

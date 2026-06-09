@@ -4,12 +4,20 @@ import { supabase } from '../lib/supabaseClient';
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const DELETE_ACCOUNT_ACTIONS = ['DELETE_ACCOUNT', 'ADMIN_DELETE_ACCOUNT'];
+const DASHBOARD_START_YEAR = 2026;
 const sanitizePostgrestOrTerm = (value) => value.replace(/[%,()]/g, ' ').trim();
 const CATALOG_CACHE_KEY = 'lfp_catalog';
+const getCurrentDashboardYear = () => Math.max(DASHBOARD_START_YEAR, new Date().getFullYear());
+const getDashboardYearOptions = () => (
+  Array.from(
+    { length: getCurrentDashboardYear() - DASHBOARD_START_YEAR + 1 },
+    (_, index) => DASHBOARD_START_YEAR + index
+  )
+);
 
 function Admin() {
   const [page, setPage] = useState(0);
-  const [selectedYear, setSelectedYear] = useState(2026);
+  const [selectedYear, setSelectedYear] = useState(() => getCurrentDashboardYear());
   const [currentUserPage, setCurrentUserPage] = useState(1);
   const [currentLogPage, setCurrentLogPage] = useState(1);
 
@@ -160,6 +168,14 @@ function Admin() {
       color: '#dc2626',
       fillColor: 'rgba(239, 68, 68, 0.1)'
     };
+    const greenLine = {
+      color: '#16a34a',
+      fillColor: 'rgba(34, 197, 94, 0.1)'
+    };
+    const yellowLine = {
+      color: '#ca8a04',
+      fillColor: 'rgba(234, 179, 8, 0.1)'
+    };
 
     if (utilizadoresChartRef.current) {
       const ctx = utilizadoresChartRef.current.getContext('2d');
@@ -223,20 +239,36 @@ function Admin() {
           labels: MONTH_LABELS,
           datasets: [
             lineDataset({
-              label: 'Views',
-              data: statsChartData.visits.total,
+              label: 'Total views',
+              data: statsChartData.visits.totalCumulative,
               color: purpleLine.color,
               fillColor: purpleLine.fillColor,
               yAxisID: 'views',
               order: 1
             }),
             lineDataset({
-              label: 'Unique views',
-              data: statsChartData.visits.unique,
+              label: 'Monthly views',
+              data: statsChartData.visits.total,
               color: blueLine.color,
               fillColor: blueLine.fillColor,
               yAxisID: 'views',
               order: 2
+            }),
+            lineDataset({
+              label: 'Total unique views',
+              data: statsChartData.visits.uniqueCumulative,
+              color: greenLine.color,
+              fillColor: greenLine.fillColor,
+              yAxisID: 'views',
+              order: 3
+            }),
+            lineDataset({
+              label: 'Monthly unique views',
+              data: statsChartData.visits.unique,
+              color: yellowLine.color,
+              fillColor: yellowLine.fillColor,
+              yAxisID: 'views',
+              order: 4
             })
           ]
         },
@@ -550,6 +582,8 @@ function Admin() {
           }
         }
       }
+      visits.totalCumulative = visits.total.map((sum => (value) => (sum += value))(0));
+      visits.uniqueCumulative = visits.unique.map((sum => (value) => (sum += value))(0));
 
       const statsMap = Object.fromEntries((statsResult.data || []).map((s) => [s.month, s]));
       const revenue  = Array.from({ length: 12 }, (_, i) => Number(statsMap[i + 1]?.revenue  ?? 0));
@@ -1076,9 +1110,9 @@ function Admin() {
                   value={selectedYear}
                   onChange={(e) => setSelectedYear(parseInt(e.target.value))}
                 >
-                  <option value={2026}>2026</option>
-                  <option value={2027}>2027</option>
-                  <option value={2028}>2028</option>
+                  {getDashboardYearOptions().map((year) => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
                 </select>
               </div>
             </div>

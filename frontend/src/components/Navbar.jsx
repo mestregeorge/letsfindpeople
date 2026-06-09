@@ -121,6 +121,11 @@ function combineAnswers(...answers) {
   return null;
 }
 
+function formatBirthDatePart(value) {
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? String(number).padStart(2, "0") : "";
+}
+
 function getSelectedGender(selected) {
   return GENDER_KEYWORDS.find(name => (selected?.other || []).includes(name)) || "";
 }
@@ -549,8 +554,8 @@ function Navbar({ onProfileSave }) {
         if (profile.dateOfBirth) {
           const parts = profile.dateOfBirth.split("-");
           loadedYear  = parts[0] || "";
-          loadedMonth = String(parseInt(parts[1] || "0", 10));
-          loadedDay   = String(parseInt(parts[2] || "0", 10));
+          loadedMonth = formatBirthDatePart(parts[1]);
+          loadedDay   = formatBirthDatePart(parts[2]);
         }
 
         // Build id→name and id→[selectorKey] maps from the catalog
@@ -969,8 +974,8 @@ function Navbar({ onProfileSave }) {
   const openEditProfile = () => {
     setFirstName(savedProfile.firstName);
     setLastName(savedProfile.lastName);
-    setBirthDay(savedProfile.birthDay);
-    setBirthMonth(savedProfile.birthMonth);
+    setBirthDay(formatBirthDatePart(savedProfile.birthDay));
+    setBirthMonth(formatBirthDatePart(savedProfile.birthMonth));
     setBirthYear(savedProfile.birthYear);
     setLocation(savedProfile.location);
     setCountryCode(savedProfile.countryCode);
@@ -1368,7 +1373,10 @@ function Navbar({ onProfileSave }) {
     }
 
     const profile = {
-      firstName, lastName, birthDay, birthMonth, birthYear,
+      firstName, lastName,
+      birthDay: formatBirthDatePart(birthDay),
+      birthMonth: formatBirthDatePart(birthMonth),
+      birthYear,
       location, countryCode, phoneNumber, showPhone,
       instagramUsername, showInstagram,
       tiktokUsername, showTiktok,

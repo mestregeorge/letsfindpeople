@@ -4,6 +4,12 @@ import defaultProfile from "../assets/default-profile.jpg";
 import { useDbData } from "../context/DbDataContext";
 import { useAuth } from "../context/AuthContext";
 import { searchUsers, consumeSearchAllowance, requestKeyword, getUserCount, getPublicUserById } from "../lib/catalogService";
+import {
+  getLatestEnabledDrawEventNotification,
+  openSiteNotificationModal,
+  removeSiteNotificationSubscription,
+  subscribeToSiteNotifications,
+} from "../lib/notificationService";
 
 const MAX_SEARCH_KEYWORDS = 12;
 const GENDER_KEYWORDS = ["Male", "Female", "Other"];
@@ -25,118 +31,6 @@ const DIRECT_KEYS = [
   "roleModels",
   "other",
 ];
-
-const POPULAR_INTERESTS = [
-  { name: "Music", subcategory: "Hobbies" },
-  { name: "Gaming", subcategory: "Hobbies" },
-  { name: "Anime", subcategory: "Anime" },
-  { name: "Watching Movies", subcategory: "Hobbies" },
-  { name: "Watching TV Shows", subcategory: "Hobbies" },
-  { name: "Sports", subcategory: "Hobbies" },
-  { name: "Travel", subcategory: "Nature & Climate" },
-  { name: "Fitness Lifestyle", subcategory: "Lifestyle" },
-  { name: "Cooking", subcategory: "Hobbies" },
-  { name: "Reading", subcategory: "Hobbies" },
-  { name: "Coding", subcategory: "Hobbies" },
-  { name: "Artificial Intelligence", subcategory: "Subjects" },
-  { name: "AI", subcategory: "Artificial Intelligence" },
-  { name: "ChatGPT", subcategory: "Artificial Intelligence" },
-  { name: "Entrepreneurship", subcategory: "Hobbies" },
-  { name: "Investing", subcategory: "Hobbies" },
-  { name: "Photography", subcategory: "Hobbies" },
-  { name: "Drawing", subcategory: "Hobbies" },
-  { name: "Painting", subcategory: "Hobbies" },
-  { name: "Dancing", subcategory: "Hobbies" },
-  { name: "Singing", subcategory: "Hobbies" },
-  { name: "Gym", subcategory: "Fitness & Training" },
-  { name: "Soccer", subcategory: "Sports" },
-  { name: "Basketball", subcategory: "Sports" },
-  { name: "Football", subcategory: "Sports" },
-  { name: "Running", subcategory: "Hobbies" },
-  { name: "Yoga", subcategory: "Hobbies" },
-  { name: "Meditation", subcategory: "Habits" },
-  { name: "Hiking", subcategory: "Hobbies" },
-  { name: "Camping", subcategory: "Hobbies" },
-  { name: "Cars", subcategory: "Cars" },
-  { name: "Fashion Design", subcategory: "Visual Arts" },
-  { name: "Makeup", subcategory: "Hobbies" },
-  { name: "Coffee", subcategory: "Drinks" },
-  { name: "Baking", subcategory: "Hobbies" },
-  { name: "Pizza", subcategory: "Food" },
-  { name: "Sushi", subcategory: "Food" },
-  { name: "Ramen", subcategory: "Food" },
-  { name: "Burgers", subcategory: "Fast Food Chains" },
-  { name: "Wine", subcategory: "Drinks" },
-  { name: "Beer", subcategory: "Drinks" },
-  { name: "Dog", subcategory: "Animals & Plants" },
-  { name: "Cat", subcategory: "Animals & Plants" },
-  { name: "Chess", subcategory: "Hobbies" },
-  { name: "Board Games", subcategory: "Lifestyle" },
-  { name: "Video Games", subcategory: "Gaming" },
-  { name: "Minecraft", subcategory: "Gaming" },
-  { name: "Fortnite", subcategory: "Gaming" },
-  { name: "Roblox", subcategory: "Gaming" },
-  { name: "League Of Legends", subcategory: "Gaming" },
-  { name: "Grand Theft Auto V", subcategory: "Gaming" },
-  { name: "Esports", subcategory: "Gaming" },
-  { name: "Netflix", subcategory: "Apps & Platforms" },
-  { name: "YouTube", subcategory: "Apps & Platforms" },
-  { name: "TikTok", subcategory: "Apps & Platforms" },
-  { name: "Instagram", subcategory: "Apps & Platforms" },
-  { name: "Memes", subcategory: "Memes & Internet Culture" },
-  { name: "Content Creators", subcategory: "Content Creators" },
-  { name: "Vlogging", subcategory: "Hobbies" },
-  { name: "Podcasting", subcategory: "Hobbies" },
-  { name: "Hip Hop", subcategory: "Music" },
-  { name: "Rap", subcategory: "Music" },
-  { name: "Pop Music", subcategory: "Music" },
-  { name: "K-Pop", subcategory: "Music" },
-  { name: "Taylor Swift", subcategory: "Music" },
-  { name: "Drake", subcategory: "Music" },
-  { name: "Kendrick Lamar", subcategory: "Music" },
-  { name: "The Weeknd", subcategory: "Music" },
-  { name: "Billie Eilish", subcategory: "Music" },
-  { name: "Bad Bunny", subcategory: "Music" },
-  { name: "Cristiano Ronaldo", subcategory: "Role Models" },
-  { name: "Lionel Messi", subcategory: "Role Models" },
-  { name: "LeBron James", subcategory: "Role Models" },
-  { name: "MrBeast", subcategory: "Content Creators" },
-  { name: "Harry Potter Series", subcategory: "Books & Comics" },
-  { name: "Game Of Thrones", subcategory: "TV Shows" },
-  { name: "Breaking Bad", subcategory: "TV Shows" },
-  { name: "Stranger Things", subcategory: "TV Shows" },
-  { name: "Friends", subcategory: "TV Shows" },
-  { name: "The Office (US)", subcategory: "TV Shows" },
-  { name: "The Last Of Us", subcategory: "TV Shows" },
-  { name: "Personal Growth", subcategory: "Habits" },
-  { name: "Productivity", subcategory: "Habits" },
-  { name: "Mindfulness", subcategory: "Habits" },
-  { name: "Self-improvement", subcategory: "Habits" },
-  { name: "Time Management", subcategory: "Habits" },
-  { name: "Leadership", subcategory: "Careers & Business" },
-  { name: "Public Speaking", subcategory: "Hobbies" },
-  { name: "Networking", subcategory: "Social Life" },
-  { name: "Creative", subcategory: "Personality" },
-  { name: "Ambitious", subcategory: "Personality" },
-  { name: "Funny", subcategory: "Personality" },
-  { name: "Introvert", subcategory: "Personality" },
-  { name: "Extrovert", subcategory: "Personality" },
-  { name: "Boxing", subcategory: "Sports" },
-  { name: "Tennis", subcategory: "Sports" },
-  { name: "Swimming", subcategory: "Sports" },
-  { name: "Cycling", subcategory: "Sports" },
-  { name: "Surfing", subcategory: "Sports" },
-  { name: "Bodybuilding", subcategory: "Fitness & Training" },
-];
-
-const POPULAR_INTEREST_RANKS = new Map(
-  POPULAR_INTERESTS.map((item, index) => [`${item.name}::${item.subcategory}`, index])
-);
-const UNRANKED_INTEREST = Number.MAX_SAFE_INTEGER;
-
-function getPopularInterestRank(item) {
-  return POPULAR_INTEREST_RANKS.get(`${item.name}::${item.subcategory}`) ?? UNRANKED_INTEREST;
-}
 
 const getAge = (birthday) => {
   const birth = new Date(birthday);
@@ -217,6 +111,7 @@ export default function Console({ currentUser }) {
   const [freeSearchesRemaining, setFreeSearchesRemaining] = useState(
     currentUser?.freeSearchesRemaining ?? 3
   );
+  const [latestDrawEventNotification, setLatestDrawEventNotification] = useState(null);
 
   const isAdmin = currentUser?.idType === 2;
   const hasUnlimitedSearches =
@@ -225,6 +120,11 @@ export default function Console({ currentUser }) {
     currentUser?.subscriptionStatus === "canceling";
   const hasFreeSearchesRemaining = freeSearchesRemaining > 0;
   const isLoggedIn = !!session?.user;
+  const shouldOfferDrawEvent =
+    isLoggedIn &&
+    !isAdmin &&
+    !hasUnlimitedSearches &&
+    freeSearchesRemaining <= 0;
   const countryItems = useMemo(
     () => dbData?.categories?.[7]?.subcategories?.[0]?.items ?? [],
     [dbData]
@@ -336,6 +236,35 @@ export default function Console({ currentUser }) {
   useEffect(() => {
     setFreeSearchesRemaining(currentUser?.freeSearchesRemaining ?? 3);
   }, [currentUser?.freeSearchesRemaining]);
+
+  useEffect(() => {
+    if (!shouldOfferDrawEvent) {
+      setLatestDrawEventNotification(null);
+      return undefined;
+    }
+
+    let isMounted = true;
+    const loadLatestDrawEvent = () => {
+      getLatestEnabledDrawEventNotification()
+        .then((notification) => {
+          if (isMounted) setLatestDrawEventNotification(notification);
+        })
+        .catch((err) => {
+          if (isMounted) {
+            console.warn("Failed to load draw event notification:", err.message);
+            setLatestDrawEventNotification(null);
+          }
+        });
+    };
+
+    loadLatestDrawEvent();
+    const channel = subscribeToSiteNotifications(loadLatestDrawEvent);
+
+    return () => {
+      isMounted = false;
+      removeSiteNotificationSubscription(channel);
+    };
+  }, [shouldOfferDrawEvent]);
 
   useEffect(() => {
     let isMounted = true;
@@ -527,15 +456,11 @@ export default function Console({ currentUser }) {
         });
       });
     });
-    return items.sort((a, b) => {
-      const rankDiff = getPopularInterestRank(a) - getPopularInterestRank(b);
-      if (rankDiff !== 0) return rankDiff;
-      return (
-        a.name.localeCompare(b.name) ||
-        a.subcategory.localeCompare(b.subcategory) ||
-        a.id - b.id
-      );
-    });
+    return items.sort((a, b) => (
+      a.name.localeCompare(b.name) ||
+      a.subcategory.localeCompare(b.subcategory) ||
+      a.id - b.id
+    ));
   }, [dbData]);
 
   // Filter keywords based on debounced search term
@@ -691,8 +616,17 @@ export default function Console({ currentUser }) {
               {searchSetupMessage}
             </p>
           ) : !hasUnlimitedSearches && (
-            <p className="text-muted mb-0">
-              *You have {freeSearchesRemaining} free {freeSearchesRemaining === 1 ? "search" : "searches"} remaining
+            <p className="console-free-searches-message text-muted mb-0">
+              *You have {freeSearchesRemaining} free {freeSearchesRemaining === 1 ? "search" : "searches"} remaining.
+              {freeSearchesRemaining <= 0 && latestDrawEventNotification && (
+                <button
+                  type="button"
+                  className="console-get-more-link"
+                  onClick={() => openSiteNotificationModal(latestDrawEventNotification)}
+                >
+                  Get More
+                </button>
+              )}
             </p>
           )}
           {userCount >= 10000 && (

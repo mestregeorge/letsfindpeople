@@ -563,6 +563,31 @@ html, body {
   white-space: nowrap;
 }
 
+.console-free-searches-message {
+  align-items: baseline;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  white-space: normal;
+}
+
+.console-get-more-link {
+  appearance: none;
+  background: none;
+  border: 0;
+  color: #6D28D9;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.console-get-more-link:hover,
+.console-get-more-link:focus {
+  color: #5B21B6;
+}
+
 .spinner-primary {
   color: #6D28D9 !important;
 }

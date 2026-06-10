@@ -22,6 +22,7 @@ import {
   getUnreadSiteNotificationCount,
   listSiteNotifications,
   markSiteNotificationRead,
+  OPEN_SITE_NOTIFICATION_EVENT,
   removeSiteNotificationSubscription,
   subscribeToSiteNotifications,
 } from "../lib/notificationService";
@@ -1170,7 +1171,9 @@ function Navbar({ onProfileSave }) {
     }
   }, [session?.user?.id]);
 
-  const openNotification = async (notification) => {
+  const openNotification = useCallback(async (notification) => {
+    if (!notification) return;
+
     setSelectedNotification(notification);
 
     if (!session?.user || notification.isRead) return;
@@ -1186,7 +1189,7 @@ function Navbar({ onProfileSave }) {
     } catch (err) {
       setNotificationsError(err.message || "Failed to update notification.");
     }
-  };
+  }, [loadNotifications, session?.user]);
 
   useEffect(() => {
     setDrawInviteLink("");
@@ -1194,7 +1197,12 @@ function Navbar({ onProfileSave }) {
     setDrawInviteCopied(false);
     setDrawInviteCompleted(false);
 
-    if (!selectedNotification?.isDrawEvent || !selectedNotification.drawEventId || !session?.user) {
+    if (
+      !selectedNotification?.isDrawEvent ||
+      !selectedNotification.drawEventId ||
+      selectedNotification.isDisabled ||
+      !session?.user
+    ) {
       setDrawInviteLoading(false);
       return undefined;
     }
@@ -1218,7 +1226,13 @@ function Navbar({ onProfileSave }) {
     return () => {
       cancelled = true;
     };
-  }, [selectedNotification?.drawEventId, selectedNotification?.isDrawEvent, session?.user, unreadNotifications]);
+  }, [
+    selectedNotification?.drawEventId,
+    selectedNotification?.isDisabled,
+    selectedNotification?.isDrawEvent,
+    session?.user,
+    unreadNotifications,
+  ]);
 
   const copyDrawInviteLink = async () => {
     if (!drawInviteLink) return;
@@ -1233,6 +1247,20 @@ function Navbar({ onProfileSave }) {
       setDrawInviteCopied(true);
     }
   };
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+
+    const handleOpenSiteNotification = (event) => {
+      openNotification(event.detail);
+    };
+
+    window.addEventListener(OPEN_SITE_NOTIFICATION_EVENT, handleOpenSiteNotification);
+
+    return () => {
+      window.removeEventListener(OPEN_SITE_NOTIFICATION_EVENT, handleOpenSiteNotification);
+    };
+  }, [openNotification]);
 
   const handleSubscribe = async (e) => {
     e.preventDefault();
@@ -2306,7 +2334,15 @@ function Navbar({ onProfileSave }) {
                 {selectedNotification.isDrawEvent && (
                   <div className="mt-3">
                     <label htmlFor="drawEventInviteLink" className="visually-hidden">Draw Event Invite</label>
-                    {drawInviteCompleted ? (
+                    {selectedNotification.isDisabled ? (
+                      <input
+                        id="drawEventInviteLink"
+                        type="text"
+                        className="form-control"
+                        value="Draw event ended."
+                        readOnly
+                      />
+                    ) : drawInviteCompleted ? (
                       <input
                         id="drawEventInviteLink"
                         type="text"

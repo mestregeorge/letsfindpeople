@@ -3,9 +3,11 @@ import { supabase } from "./supabaseClient";
 export const NOTIFICATION_TITLE_MAX_LENGTH = 120;
 export const NOTIFICATION_BODY_MAX_LENGTH = 2000;
 export const NOTIFICATION_COVER_MAX_SIZE = 3 * 1024 * 1024;
+export const OPEN_SITE_NOTIFICATION_EVENT = "lfp:open-site-notification";
 
 const NOTIFICATION_COVER_BUCKET = "notification-covers";
 const ALLOWED_COVER_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+let notificationSubscriptionId = 0;
 
 function mapNotification(row) {
   const type = row.notification_type || "general";
@@ -18,6 +20,7 @@ function mapNotification(row) {
     coverUrl: row.cover_url || "",
     createdAt: row.created_at,
     isRead: !!row.is_read,
+    isDisabled: !!row.is_disabled,
     type,
     drawEventId,
     isDrawEvent: type === "draw_event" && Number.isFinite(drawEventId),
@@ -102,6 +105,14 @@ export async function listSiteNotifications(limit = 20) {
   });
   if (error) throw new Error(error.message);
   return (data || []).map(mapNotification);
+}
+
+export async function getLatestEnabledDrawEventNotification() {
+  const { data, error } = await supabase.rpc("get_latest_enabled_draw_event_notification");
+  if (error) throw new Error(error.message);
+
+  const row = Array.isArray(data) ? data[0] : data;
+  return row ? mapNotification(row) : null;
 }
 
 export async function getUnreadSiteNotificationCount() {
@@ -198,11 +209,23 @@ export async function getOrCreateDrawEventInvite(drawEventId) {
 }
 
 export function subscribeToSiteNotifications(onChange) {
+  notificationSubscriptionId += 1;
+
   return supabase
-    .channel("site-notifications")
+    .channel(`site-notifications-${notificationSubscriptionId}`)
     .on(
       "postgres_changes",
       { event: "INSERT", schema: "public", table: "site_notifications" },
+      onChange
+    )
+    .on(
+      "postgres_changes",
+      { event: "UPDATE", schema: "public", table: "site_notifications" },
+      onChange
+    )
+    .on(
+      "postgres_changes",
+      { event: "UPDATE", schema: "public", table: "draw_events" },
       onChange
     )
     .subscribe();
@@ -211,4 +234,9 @@ export function subscribeToSiteNotifications(onChange) {
 export function removeSiteNotificationSubscription(channel) {
   if (!channel) return Promise.resolve();
   return supabase.removeChannel(channel);
+}
+
+export function openSiteNotificationModal(notification) {
+  if (typeof window === "undefined" || !notification) return;
+  window.dispatchEvent(new CustomEvent(OPEN_SITE_NOTIFICATION_EVENT, { detail: notification }));
 }

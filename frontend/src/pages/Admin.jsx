@@ -11,11 +11,28 @@ import {
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const DELETE_ACCOUNT_ACTIONS = ['DELETE_ACCOUNT', 'ADMIN_DELETE_ACCOUNT'];
 const DASHBOARD_START_YEAR = 2026;
-const ADMIN_COMPACT_PAGINATION_QUERY = '(max-width: 991.98px)';
+const ADMIN_MOBILE_PAGINATION_QUERY = '(max-width: 575.98px)';
+const ADMIN_TABLET_PAGINATION_QUERY = '(max-width: 991.98px)';
 const DESKTOP_MAX_PAGINATION_PAGES = 10;
-const COMPACT_MAX_PAGINATION_PAGES = 4;
+const TABLET_MAX_PAGINATION_PAGES = 4;
+const MOBILE_MAX_PAGINATION_PAGES = 2;
 const sanitizePostgrestOrTerm = (value) => value.replace(/[%,()]/g, ' ').trim();
 const CATALOG_CACHE_KEY = 'lfp_catalog';
+const getAdminMaxPaginationPages = () => {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    return DESKTOP_MAX_PAGINATION_PAGES;
+  }
+
+  if (window.matchMedia(ADMIN_MOBILE_PAGINATION_QUERY).matches) {
+    return MOBILE_MAX_PAGINATION_PAGES;
+  }
+
+  if (window.matchMedia(ADMIN_TABLET_PAGINATION_QUERY).matches) {
+    return TABLET_MAX_PAGINATION_PAGES;
+  }
+
+  return DESKTOP_MAX_PAGINATION_PAGES;
+};
 const getCurrentDashboardYear = () => Math.max(DASHBOARD_START_YEAR, new Date().getFullYear());
 const getDashboardYearOptions = () => (
   Array.from(
@@ -46,11 +63,7 @@ function Admin() {
   const [selectedYear, setSelectedYear] = useState(() => getCurrentDashboardYear());
   const [currentUserPage, setCurrentUserPage] = useState(1);
   const [currentLogPage, setCurrentLogPage] = useState(1);
-  const [isCompactPagination, setIsCompactPagination] = useState(() => (
-    typeof window !== 'undefined'
-    && typeof window.matchMedia === 'function'
-    && window.matchMedia(ADMIN_COMPACT_PAGINATION_QUERY).matches
-  ));
+  const [maxPaginationPages, setMaxPaginationPages] = useState(() => getAdminMaxPaginationPages());
 
   const utilizadoresChartRef = useRef(null);
   const visitsChartRef = useRef(null);
@@ -134,9 +147,11 @@ function Admin() {
   const [eventIsDrawEvent, setEventIsDrawEvent] = useState(false);
   const [eventSending, setEventSending] = useState(false);
   const [eventError, setEventError] = useState('');
-  const maxPaginationPages = isCompactPagination
-    ? COMPACT_MAX_PAGINATION_PAGES
-    : DESKTOP_MAX_PAGINATION_PAGES;
+
+  // Draw event notifications state
+  const [drawEvents, setDrawEvents] = useState([]);
+  const [drawEventsLoading, setDrawEventsLoading] = useState(false);
+  const [drawEventsError, setDrawEventsError] = useState(null);
 
   const createCharts = useCallback(() => {
     Object.values(chartInstancesRef.current).forEach((chart) => {
@@ -736,6 +751,25 @@ function Admin() {
     }
   }, [keywordsPerPage]);
 
+  const fetchDrawEvents = useCallback(async () => {
+    setDrawEventsLoading(true);
+    setDrawEventsError(null);
+    try {
+      const { data, error } = await supabase.rpc('list_admin_draw_events');
+      if (error) throw new Error(error.message);
+      setDrawEvents((data || []).map((event) => ({
+        id: event.id_draw_event,
+        title: event.title || '',
+        createdAt: event.created_at,
+        isDisabled: !!event.is_disabled,
+      })));
+    } catch (err) {
+      setDrawEventsError(err.message);
+    } finally {
+      setDrawEventsLoading(false);
+    }
+  }, []);
+
   // Fetch statistics whenever the Statistics tab is active or year changes
   useEffect(() => {
     if (page === 0) {
@@ -746,14 +780,17 @@ function Admin() {
   useEffect(() => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return undefined;
 
-    const mediaQuery = window.matchMedia(ADMIN_COMPACT_PAGINATION_QUERY);
-    const handleChange = () => setIsCompactPagination(mediaQuery.matches);
+    const mobileQuery = window.matchMedia(ADMIN_MOBILE_PAGINATION_QUERY);
+    const tabletQuery = window.matchMedia(ADMIN_TABLET_PAGINATION_QUERY);
+    const handleChange = () => setMaxPaginationPages(getAdminMaxPaginationPages());
 
     handleChange();
-    mediaQuery.addEventListener('change', handleChange);
+    mobileQuery.addEventListener('change', handleChange);
+    tabletQuery.addEventListener('change', handleChange);
 
     return () => {
-      mediaQuery.removeEventListener('change', handleChange);
+      mobileQuery.removeEventListener('change', handleChange);
+      tabletQuery.removeEventListener('change', handleChange);
     };
   }, []);
 
@@ -778,6 +815,13 @@ function Admin() {
       fetchRequestedKeywords(currentRequestPage);
     }
   }, [page, currentRequestPage, fetchRequestedKeywords]);
+
+  // Fetch draw events whenever the Notifications tab is active
+  useEffect(() => {
+    if (page === 5) {
+      fetchDrawEvents();
+    }
+  }, [page, fetchDrawEvents]);
 
   // Fetch keywords whenever the Keywords tab is active or keyword page/search changes
   useEffect(() => {
@@ -1006,11 +1050,32 @@ function Admin() {
         p_status: 'Success',
         p_metadata: { title: trimmedTitle, isDrawEvent: eventIsDrawEvent },
       })).catch(() => {});
+      if (eventIsDrawEvent) fetchDrawEvents();
       closeEventModal({ force: true });
     } catch (err) {
       setEventError(err.message || 'Failed to send notification.');
     } finally {
       setEventSending(false);
+    }
+  };
+
+  const handleDisableDrawEvent = async (event) => {
+    if (!event || event.isDisabled) return;
+    if (!window.confirm('Disable this draw event? Existing users will see that the event ended.')) return;
+
+    try {
+      const { error } = await supabase.rpc('disable_draw_event', {
+        p_draw_event_id: event.id,
+      });
+      if (error) throw new Error(error.message);
+      Promise.resolve(supabase.rpc('write_log', {
+        p_action: 'ADMIN_DISABLE_DRAW_EVENT',
+        p_status: 'Success',
+        p_metadata: { drawEventId: event.id, title: event.title },
+      })).catch(() => {});
+      fetchDrawEvents();
+    } catch (err) {
+      alert('Failed to disable draw event: ' + err.message);
     }
   };
 
@@ -1145,6 +1210,7 @@ function Admin() {
     { id: 0, label: 'Dashboard' },
     { id: 1, label: 'Users' },
     { id: 2, label: 'Keywords' },
+    { id: 5, label: 'Notifications' },
     { id: 4, label: 'Requests' },
     { id: 3, label: 'Logs' },
   ];
@@ -1172,18 +1238,6 @@ function Admin() {
                   </button>
                 ))}
               </nav>
-              <p className="admin-sidebar-section text-uppercase small mb-2 mt-4 px-3">
-                Events
-              </p>
-              <div className="px-2">
-                <button
-                  type="button"
-                  className="admin-sidebar-link nav-link text-start w-100"
-                  onClick={openEventModal}
-                >
-                  Send Notification
-                </button>
-              </div>
             </div>
           </div>
         </aside>
@@ -1498,6 +1552,70 @@ function Admin() {
             </ul>
           </nav>
           </>
+          )}
+        </>
+      )}
+
+      {/* Notifications Tab */}
+      {page === 5 && (
+        <>
+          <div className="admin-toolbar d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <button
+              type="button"
+              className="btn text-white admin-add-keyword-btn"
+              onClick={openEventModal}
+            >
+              Send Notification
+            </button>
+          </div>
+
+          {drawEventsLoading ? (
+            <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '200px' }}>
+              <div className="spinner-border spinner-primary" role="status">
+                <span className="visually-hidden">Loading draw events...</span>
+              </div>
+            </div>
+          ) : drawEventsError ? (
+            <div className="alert alert-danger">Failed to load draw events: {drawEventsError}</div>
+          ) : (
+          <div className="table-responsive">
+            <table className="table table-striped align-middle text-center">
+              <thead>
+                <tr>
+                  <th scope="col">Draw Events</th>
+                  <th scope="col">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {drawEvents.length === 0 ? (
+                  <tr><td colSpan={2} className="text-muted">No draw events found.</td></tr>
+                ) : (
+                  drawEvents.map((event) => (
+                    <tr key={event.id}>
+                      <td className="text-start">
+                        <div className="fw-semibold">{event.title}</div>
+                        {event.createdAt && (
+                          <small className="text-muted">
+                            {new Date(event.createdAt).toLocaleString('en-GB')}
+                          </small>
+                        )}
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="btn btn-danger btn-sm"
+                          onClick={() => handleDisableDrawEvent(event)}
+                          disabled={event.isDisabled}
+                        >
+                          {event.isDisabled ? 'Disabled' : 'Disable'}
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
           )}
         </>
       )}

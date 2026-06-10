@@ -9,14 +9,11 @@ import { updateUserProfile, deleteUser, getUserProfile, uploadProfilePicture } f
 import { requestKeyword } from "../lib/catalogService";
 import {
   CHAT_MAX_MESSAGE_LENGTH,
-  createChatGifMessage,
-  getChatGifUrl,
   listGlobalChatMessages,
   removeGlobalChatSubscription,
   sendGlobalChatMessage,
   subscribeToGlobalChatMessages,
 } from "../lib/chatService";
-import { searchGifs } from "../lib/gifService";
 import {
   getUnreadSiteNotificationCount,
   listSiteNotifications,
@@ -146,24 +143,6 @@ function formatChatTimestamp(value) {
 function getChatAuthorName(message) {
   const name = `${message.author?.firstName || ""} ${message.author?.lastName || ""}`.trim();
   return name || message.author?.email || "Member";
-}
-
-function ChatMessageBody({ body, isOwnMessage }) {
-  const gifUrl = getChatGifUrl(body);
-
-  if (gifUrl) {
-    return (
-      <div className={`rounded-3 overflow-hidden global-chat-gif-bubble ${isOwnMessage ? "global-chat-message-own" : "bg-white border"}`}>
-        <img src={gifUrl} alt="GIF" className="global-chat-gif-image" loading="lazy" />
-      </div>
-    );
-  }
-
-  return (
-    <div className={`rounded-3 p-2 text-break ${isOwnMessage ? "text-white global-chat-message-own" : "bg-white border"}`}>
-      {body}
-    </div>
-  );
 }
 
 function formatNotificationTimestamp(value) {
@@ -523,11 +502,6 @@ function Navbar({ onProfileSave }) {
   const [chatLoading, setChatLoading] = useState(false);
   const [chatSending, setChatSending] = useState(false);
   const [chatError, setChatError] = useState("");
-  const [showGifPicker, setShowGifPicker] = useState(false);
-  const [gifQuery, setGifQuery] = useState("");
-  const [gifResults, setGifResults] = useState([]);
-  const [gifLoading, setGifLoading] = useState(false);
-  const [gifError, setGifError] = useState("");
   const [notifications, setNotifications] = useState([]);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
@@ -559,10 +533,6 @@ function Navbar({ onProfileSave }) {
       setChatMessages([]);
       setChatDraft("");
       setChatError("");
-      setShowGifPicker(false);
-      setGifQuery("");
-      setGifResults([]);
-      setGifError("");
       setNotifications([]);
       setUnreadNotifications(0);
       setNotificationsError("");
@@ -1109,16 +1079,12 @@ function Navbar({ onProfileSave }) {
   const closeGlobalChat = () => {
     setShowChatModal(false);
     setChatDraft("");
-    setShowGifPicker(false);
-    setGifQuery("");
-    setGifError("");
   };
 
   const openChatAuthorInConsole = (message) => {
     if (!message?.userId) return;
     setShowChatModal(false);
     setChatDraft("");
-    setShowGifPicker(false);
     navigate(`/?person=${encodeURIComponent(message.userId)}`);
   };
 
@@ -1146,67 +1112,6 @@ function Navbar({ onProfileSave }) {
       loadGlobalChatMessages({ silent: true });
     } catch (err) {
       setChatError(err.message || "Failed to send message.");
-    } finally {
-      setChatSending(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!showGifPicker || !session?.user?.id) return undefined;
-
-    let isActive = true;
-    const timer = setTimeout(async () => {
-      setGifLoading(true);
-      setGifError("");
-
-      try {
-        const gifs = await searchGifs(gifQuery);
-        if (isActive) setGifResults(gifs);
-      } catch (err) {
-        if (!isActive) return;
-        setGifResults([]);
-        setGifError(err.message || "Failed to load GIFs.");
-      } finally {
-        if (isActive) setGifLoading(false);
-      }
-    }, 300);
-
-    return () => {
-      isActive = false;
-      clearTimeout(timer);
-    };
-  }, [gifQuery, session?.user?.id, showGifPicker]);
-
-  const toggleGifPicker = () => {
-    if (!session?.user) {
-      setChatError("Sign in to send messages.");
-      return;
-    }
-
-    setChatError("");
-    setShowGifPicker(prev => !prev);
-  };
-
-  const handleGifSelect = async (gif) => {
-    if (!session?.user || chatSending) return;
-
-    setChatSending(true);
-    setChatError("");
-
-    try {
-      const body = createChatGifMessage(gif?.url);
-      const message = await sendGlobalChatMessage(body);
-      setShowGifPicker(false);
-      setGifQuery("");
-      setChatDraft("");
-      if (message) {
-        setChatMessages(prev => (
-          prev.some(existing => existing.id === message.id) ? prev : [...prev, message]
-        ));
-      }
-      loadGlobalChatMessages({ silent: true });
-    } catch (err) {
-      setChatError(err.message || "Failed to send GIF.");
     } finally {
       setChatSending(false);
     }
@@ -2135,7 +2040,9 @@ function Navbar({ onProfileSave }) {
                         >
                           {isOwnMessage ? (
                             <div className="w-75 d-flex flex-column align-items-end">
-                              <ChatMessageBody body={message.body} isOwnMessage />
+                              <div className="rounded-3 p-2 text-break text-white global-chat-message-own">
+                                {message.body}
+                              </div>
                               {showMessageTime && (
                                 <small className="text-muted mt-1 text-end">
                                   {formatChatTimestamp(message.createdAt)}
@@ -2166,7 +2073,9 @@ function Navbar({ onProfileSave }) {
                                 >
                                   {getChatAuthorName(message)}
                                 </button>
-                                <ChatMessageBody body={message.body} isOwnMessage={false} />
+                                <div className="rounded-3 p-2 text-break bg-white border">
+                                  {message.body}
+                                </div>
                                 {showMessageTime && (
                                   <small className="text-muted mt-1">
                                     {formatChatTimestamp(message.createdAt)}
@@ -2183,73 +2092,9 @@ function Navbar({ onProfileSave }) {
                 )}
               </div>
 
-              {showGifPicker && (
-                <div className="global-chat-gif-picker border-top bg-white">
-                  <div className="input-group input-group-sm mb-2">
-                    <span className="input-group-text bg-white">
-                      <i className="bi bi-search"></i>
-                    </span>
-                    <label htmlFor="globalChatGifSearch" className="visually-hidden">Search GIFs</label>
-                    <input
-                      type="search"
-                      id="globalChatGifSearch"
-                      className="form-control"
-                      placeholder="Search GIFs"
-                      value={gifQuery}
-                      onChange={(e) => setGifQuery(e.target.value)}
-                    />
-                    <button
-                      type="button"
-                      className="btn btn-outline-secondary"
-                      onClick={() => setShowGifPicker(false)}
-                      aria-label="Close GIF picker"
-                      title="Close"
-                    >
-                      <i className="bi bi-x-lg"></i>
-                    </button>
-                  </div>
-
-                  {gifLoading ? (
-                    <div className="d-flex justify-content-center align-items-center global-chat-gif-state">
-                      <span className="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></span>
-                    </div>
-                  ) : gifError ? (
-                    <div className="global-chat-gif-state text-danger small">{gifError}</div>
-                  ) : gifResults.length === 0 ? (
-                    <div className="global-chat-gif-state text-muted small">No GIFs found.</div>
-                  ) : (
-                    <div className="global-chat-gif-grid">
-                      {gifResults.map((gif) => (
-                        <button
-                          key={gif.id}
-                          type="button"
-                          className="global-chat-gif-option"
-                          onClick={() => handleGifSelect(gif)}
-                          disabled={chatSending}
-                          title={gif.title}
-                        >
-                          <img src={gif.previewUrl} alt={gif.title} loading="lazy" />
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
               <form className="modal-footer" onSubmit={handleChatSubmit}>
                 <div className="input-group">
                   <label htmlFor="globalChatMessage" className="visually-hidden">Message</label>
-                  <button
-                    type="button"
-                    className={`btn btn-outline-secondary global-chat-gif-toggle${showGifPicker ? " active" : ""}`}
-                    onClick={toggleGifPicker}
-                    disabled={!session || chatSending}
-                    aria-label="Search GIFs"
-                    aria-expanded={showGifPicker}
-                    title="GIF"
-                  >
-                    GIF
-                  </button>
                   <input
                     type="text"
                     id="globalChatMessage"

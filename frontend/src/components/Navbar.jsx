@@ -515,6 +515,7 @@ function Navbar({ onProfileSave }) {
   const [drawInviteLoading, setDrawInviteLoading] = useState(false);
   const [drawInviteError, setDrawInviteError] = useState("");
   const [drawInviteCopied, setDrawInviteCopied] = useState(false);
+  const [drawInviteCompleted, setDrawInviteCompleted] = useState(false);
 
   // tracks whether we've already hydrated state from the DB for the current session
   const [profileLoaded, setProfileLoaded] = useState(false);
@@ -1173,6 +1174,7 @@ function Navbar({ onProfileSave }) {
     setDrawInviteLink("");
     setDrawInviteError("");
     setDrawInviteCopied(false);
+    setDrawInviteCompleted(false);
 
     if (!selectedNotification?.isDrawEvent || !selectedNotification.drawEventId || !session?.user) {
       setDrawInviteLoading(false);
@@ -1183,8 +1185,10 @@ function Navbar({ onProfileSave }) {
     setDrawInviteLoading(true);
 
     getOrCreateDrawEventInvite(selectedNotification.drawEventId)
-      .then(({ inviteCode }) => {
-        if (!cancelled) setDrawInviteLink(buildInviteUrl(inviteCode));
+      .then(({ inviteCode, hasCompletedSignup }) => {
+        if (cancelled) return;
+        setDrawInviteCompleted(hasCompletedSignup);
+        if (!hasCompletedSignup) setDrawInviteLink(buildInviteUrl(inviteCode));
       })
       .catch((err) => {
         if (!cancelled) setDrawInviteError(err.message || "Failed to create invite link.");
@@ -1196,7 +1200,7 @@ function Navbar({ onProfileSave }) {
     return () => {
       cancelled = true;
     };
-  }, [selectedNotification?.drawEventId, selectedNotification?.isDrawEvent, session?.user]);
+  }, [selectedNotification?.drawEventId, selectedNotification?.isDrawEvent, session?.user, unreadNotifications]);
 
   const copyDrawInviteLink = async () => {
     if (!drawInviteLink) return;
@@ -2247,7 +2251,7 @@ function Navbar({ onProfileSave }) {
                 <p className="mb-0" style={{ whiteSpace: "pre-wrap" }}>
                   {selectedNotification.body}
                 </p>
-                {selectedNotification.isDrawEvent && (
+                {selectedNotification.isDrawEvent && !drawInviteCompleted && (
                   <div className="mt-3">
                     <label htmlFor="drawEventInviteLink" className="visually-hidden">Draw Event Invite</label>
                     <div className="input-group">
@@ -2266,11 +2270,11 @@ function Navbar({ onProfileSave }) {
                         onClick={copyDrawInviteLink}
                         disabled={!drawInviteLink || drawInviteLoading}
                       >
-                        {drawInviteCopied ? "Copied" : "Copy"}
+                        {drawInviteCopied ? "Copied!" : "Copy"}
                       </button>
                     </div>
                     {drawInviteLoading && (
-                      <small className="text-muted d-block mt-1">Creating invite link...</small>
+                      <small className="text-muted d-block mt-1">Getting invite link...</small>
                     )}
                     {drawInviteError && (
                       <small className="text-danger d-block mt-1">{drawInviteError}</small>

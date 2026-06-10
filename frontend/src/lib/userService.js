@@ -65,6 +65,12 @@ export async function ensureUser() {
   return data;
 }
 
+export async function completeDrawEventPendingInviteSignup() {
+  const { data, error } = await supabase.rpc("complete_draw_event_pending_invite_signup");
+  if (error) throw new Error(error.message);
+  return !!data;
+}
+
 // ── getUserProfile ────────────────────────────────────────────────────────────
 /**
  * Fetches the full profile + keyword IDs for the currently authenticated user.
@@ -234,6 +240,10 @@ export async function updateUserProfile(supabaseUid, profile, keywordIds) {
     ).catch(() => {});
     throw new Error(updateErr.message);
   }
+
+  await completeDrawEventPendingInviteSignup().catch((err) => {
+    console.error("Failed to complete draw event invite:", err.message);
+  });
 
   Promise.resolve(supabase
     .rpc("write_log", { p_action: "EDIT_MY_DATA", p_status: "Success" })

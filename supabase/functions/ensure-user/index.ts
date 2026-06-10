@@ -60,7 +60,7 @@ function getInviteDisplayName(user: unknown, email: string) {
   return String(name || email || "Someone you invited").trim();
 }
 
-async function awardInviteBonus(
+async function recordPendingInvite(
   supabase: ReturnType<typeof createClient>,
   inviteCode: number | null,
   invitedUserId: number,
@@ -68,14 +68,14 @@ async function awardInviteBonus(
 ) {
   if (!inviteCode) return;
 
-  const { error } = await supabase.rpc("award_draw_event_invite_bonus", {
+  const { error } = await supabase.rpc("record_draw_event_pending_invite", {
     p_invite_code: inviteCode,
     p_invited_user_id: invitedUserId,
     p_invited_display_name: invitedDisplayName,
   });
 
   if (error) {
-    console.error("[awardInviteBonus]", error.message);
+    console.error("[recordPendingInvite]", error.message);
   }
 }
 
@@ -192,7 +192,7 @@ Deno.serve(async (req: Request) => {
         .eq("supabase_uid", supabaseUid)
         .maybeSingle();
       if (existing) {
-        await awardInviteBonus(supabase, inviteCode, existing.id_user, invitedDisplayName);
+        await recordPendingInvite(supabase, inviteCode, existing.id_user, invitedDisplayName);
         await writeLog(supabase, existing.id_user, "CREATE_ACCOUNT", "Success");
         return json({ user: existing, created: true });
       }
@@ -201,7 +201,7 @@ Deno.serve(async (req: Request) => {
     return json({ error: insertErr.message }, 500);
   }
 
-  await awardInviteBonus(supabase, inviteCode, newUser.id_user, invitedDisplayName);
+  await recordPendingInvite(supabase, inviteCode, newUser.id_user, invitedDisplayName);
   await writeLog(supabase, newUser.id_user, "CREATE_ACCOUNT", "Success");
   return json({ user: newUser, created: true });
 });

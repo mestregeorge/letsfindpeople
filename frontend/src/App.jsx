@@ -26,11 +26,11 @@ const DEFAULT_IMAGE_URL = `${SITE_URL}/preview.png`;
 const PAGE_META = {
   "/": {
     title: SITE_NAME,
-    description: "LetsFindPeople helps you discover and connect with people who share your interests.",
+    description: "Find people with the exact interests you choose!",
   },
   "/console": {
     title: SITE_NAME,
-    description: "LetsFindPeople helps you discover and connect with people who share your interests.",
+    description: "Find people with the exact interests you choose!",
   },
   "/auth/callback": {
     title: `${SITE_NAME} | Signing In`,

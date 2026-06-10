@@ -51,10 +51,38 @@ export function AuthProvider({ children }) {
   }
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session ?? null);
       if (session?.user) {
         setAuthBlockReason(null);
+        const isAuthCallback =
+          window.location.pathname === "/auth/callback" ||
+          window.location.hash.includes("access_token=");
+
+        if (isAuthCallback && ensuredUidRef.current !== session.user.id) {
+          ensuredUidRef.current = session.user.id;
+          setIsRoleLoading(true);
+          try {
+            await ensureUser();
+            await fetchRole(session.user.id);
+          } catch (err) {
+            console.error(err);
+            setIsAdmin(false);
+            setIsRoleLoading(false);
+            if (err.message === "ACCOUNT_DELETED") {
+              setAuthBlockReason("accountDeleted");
+            }
+            if (
+              err.message === "ACCOUNT_DELETED" ||
+              err.message === "ACCOUNT_BANNED" ||
+              err.message === "ACCOUNT_SUSPENDED"
+            ) {
+              await supabase.auth.signOut();
+            }
+          }
+          return;
+        }
+
         fetchRole(session.user.id);
       } else {
         setIsRoleLoading(false);
@@ -69,7 +97,28 @@ export function AuthProvider({ children }) {
         // Guard with a ref so duplicate SIGNED_IN events for the same UID don't double-log.
         if (event === 'SIGNED_IN' && ensuredUidRef.current !== session.user.id) {
           ensuredUidRef.current = session.user.id;
-          ensureUser(session.user.id, session.user.email).catch(console.error);
+          setIsRoleLoading(true);
+          (async () => {
+            try {
+              await ensureUser();
+              await fetchRole(session.user.id);
+            } catch (err) {
+              console.error(err);
+              setIsAdmin(false);
+              setIsRoleLoading(false);
+              if (err.message === "ACCOUNT_DELETED") {
+                setAuthBlockReason("accountDeleted");
+              }
+              if (
+                err.message === "ACCOUNT_DELETED" ||
+                err.message === "ACCOUNT_BANNED" ||
+                err.message === "ACCOUNT_SUSPENDED"
+              ) {
+                await supabase.auth.signOut();
+              }
+            }
+          })();
+          return;
         }
         fetchRole(session.user.id);
       } else {

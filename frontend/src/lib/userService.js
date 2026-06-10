@@ -4,6 +4,7 @@
 // Stripe secrets (checkout / portal) are delegated to Supabase Edge Functions.
 
 import { supabase } from "./supabaseClient";
+import { clearPendingInviteCode, getPendingInviteCode } from "./inviteService";
 
 // ── Column mappings (mirror the server-side constants) ────────────────────────
 const YES_NO_COLS = {
@@ -54,11 +55,13 @@ const SKIP_COLS_SQL   = Object.values(SKIP_COLS).join(", ");
  * The Edge Function extracts the UID and email from the caller's JWT, so the
  */
 export async function ensureUser() {
+  const inviteCode = getPendingInviteCode();
   const { data, error } = await supabase.functions.invoke("ensure-user", {
-    body: {},
+    body: inviteCode ? { inviteCode } : {},
   });
   if (error) throw new Error(error.message);
   if (data?.error) throw new Error(data.error);
+  clearPendingInviteCode();
   return data;
 }
 

@@ -192,8 +192,8 @@ export default function Console({ currentUser }) {
   const { session, isLoading: authLoading } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const focusedPersonId = useMemo(
-    () => new URLSearchParams(location.search).get("person"),
+  const focusedUserId = useMemo(
+    () => new URLSearchParams(location.search).get("user"),
     [location.search]
   );
 
@@ -283,10 +283,10 @@ export default function Console({ currentUser }) {
     (!hasUnlimitedSearches && !hasFreeSearchesRemaining);
 
   useEffect(() => {
-    if (!focusedPersonId) return undefined;
+    if (!focusedUserId) return undefined;
     if (authLoading) return undefined;
 
-    const userId = Number(focusedPersonId);
+    const userId = Number(focusedUserId);
     if (!Number.isInteger(userId) || userId <= 0) {
       navigate("/", { replace: true });
       return undefined;
@@ -325,13 +325,13 @@ export default function Console({ currentUser }) {
     return () => {
       isMounted = false;
     };
-  }, [authLoading, focusedPersonId, navigate, session?.user]);
+  }, [authLoading, focusedUserId, navigate, session?.user]);
 
   useEffect(() => {
-    if (!focusedPersonId || isSearching || !searchResults?.length) return;
+    if (!focusedUserId || isSearching || !searchResults?.length) return;
 
     peopleContainerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [focusedPersonId, isSearching, searchResults]);
+  }, [focusedUserId, isSearching, searchResults]);
 
   useEffect(() => {
     setFreeSearchesRemaining(currentUser?.freeSearchesRemaining ?? 3);
@@ -422,7 +422,7 @@ export default function Console({ currentUser }) {
 
   // Run search: call backend with selected keyword IDs, then prepend current user if matching
   const runSearch = async () => {
-    if (focusedPersonId) {
+    if (focusedUserId) {
       navigate("/", { replace: true });
     }
 

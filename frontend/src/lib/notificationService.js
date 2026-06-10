@@ -8,6 +8,9 @@ const NOTIFICATION_COVER_BUCKET = "notification-covers";
 const ALLOWED_COVER_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 
 function mapNotification(row) {
+  const type = row.notification_type || "general";
+  const drawEventId = row.draw_event_id == null ? null : Number(row.draw_event_id);
+
   return {
     id: row.id_notification,
     title: row.title || "",
@@ -15,6 +18,9 @@ function mapNotification(row) {
     coverUrl: row.cover_url || "",
     createdAt: row.created_at,
     isRead: !!row.is_read,
+    type,
+    drawEventId,
+    isDrawEvent: type === "draw_event" && Number.isFinite(drawEventId),
   };
 }
 
@@ -146,7 +152,7 @@ export async function uploadNotificationCover(file) {
   return data.publicUrl;
 }
 
-export async function createSiteNotification({ title, body, coverUrl }) {
+export async function createSiteNotification({ title, body, coverUrl, isDrawEvent = false }) {
   const trimmedTitle = String(title || "").trim();
   const trimmedBody = String(body || "").trim();
   const trimmedCoverUrl = String(coverUrl || "").trim();
@@ -164,11 +170,30 @@ export async function createSiteNotification({ title, body, coverUrl }) {
     p_title: trimmedTitle,
     p_body: trimmedBody,
     p_cover_url: trimmedCoverUrl || null,
+    p_is_draw_event: !!isDrawEvent,
   });
   if (error) throw new Error(error.message);
 
   const row = Array.isArray(data) ? data[0] : data;
   return row ? mapNotification(row) : null;
+}
+
+export async function getOrCreateDrawEventInvite(drawEventId) {
+  const id = Number(drawEventId);
+  if (!Number.isInteger(id) || id <= 0) throw new Error("Invalid draw event.");
+
+  const { data, error } = await supabase.rpc("get_or_create_draw_event_invite", {
+    p_draw_event_id: id,
+  });
+  if (error) throw new Error(error.message);
+
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row?.id_draw_event_invite) throw new Error("Failed to create invite link.");
+
+  return {
+    inviteCode: String(row.id_draw_event_invite),
+    drawEventId: Number(row.id_draw_event),
+  };
 }
 
 export function subscribeToSiteNotifications(onChange) {

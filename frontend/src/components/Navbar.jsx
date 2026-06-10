@@ -14,7 +14,9 @@ import {
   sendGlobalChatMessage,
   subscribeToGlobalChatMessages,
 } from "../lib/chatService";
+import { buildInviteUrl, getInviteCodeFromSearch, storePendingInviteCode } from "../lib/inviteService";
 import {
+  getOrCreateDrawEventInvite,
   getUnreadSiteNotificationCount,
   listSiteNotifications,
   markSiteNotificationRead,
@@ -261,6 +263,8 @@ function Navbar({ onProfileSave }) {
   const notificationsDropdownMenuRef = useRef(null);
   const contactErrorRef = useRef(null);
   const chatMessagesBodyRef = useRef(null);
+  const drawInviteInputRef = useRef(null);
+  const inviteAuthOpenedRef = useRef("");
 
   const [keywordRequestStatuses, setKeywordRequestStatuses] = useState({});
 
@@ -507,6 +511,10 @@ function Navbar({ onProfileSave }) {
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [notificationsError, setNotificationsError] = useState("");
   const [selectedNotification, setSelectedNotification] = useState(null);
+  const [drawInviteLink, setDrawInviteLink] = useState("");
+  const [drawInviteLoading, setDrawInviteLoading] = useState(false);
+  const [drawInviteError, setDrawInviteError] = useState("");
+  const [drawInviteCopied, setDrawInviteCopied] = useState(false);
 
   // tracks whether we've already hydrated state from the DB for the current session
   const [profileLoaded, setProfileLoaded] = useState(false);
@@ -1031,6 +1039,8 @@ function Navbar({ onProfileSave }) {
     e.preventDefault();
     setGoogleLoading(true);
     setAuthError("");
+    const inviteCode = getInviteCodeFromSearch(routerLocation.search);
+    if (inviteCode) storePendingInviteCode(inviteCode);
 
     const siteUrl = import.meta.env.VITE_SITE_URL?.replace(/\/$/, "");
     const redirectOrigin = siteUrl || window.location.origin;
@@ -1085,7 +1095,7 @@ function Navbar({ onProfileSave }) {
     if (!message?.userId) return;
     setShowChatModal(false);
     setChatDraft("");
-    navigate(`/?person=${encodeURIComponent(message.userId)}`);
+    navigate(`/?user=${encodeURIComponent(message.userId)}`);
   };
 
   const handleChatSubmit = async (e) => {
@@ -1156,6 +1166,49 @@ function Navbar({ onProfileSave }) {
       loadNotifications({ silent: true });
     } catch (err) {
       setNotificationsError(err.message || "Failed to update notification.");
+    }
+  };
+
+  useEffect(() => {
+    setDrawInviteLink("");
+    setDrawInviteError("");
+    setDrawInviteCopied(false);
+
+    if (!selectedNotification?.isDrawEvent || !selectedNotification.drawEventId || !session?.user) {
+      setDrawInviteLoading(false);
+      return undefined;
+    }
+
+    let cancelled = false;
+    setDrawInviteLoading(true);
+
+    getOrCreateDrawEventInvite(selectedNotification.drawEventId)
+      .then(({ inviteCode }) => {
+        if (!cancelled) setDrawInviteLink(buildInviteUrl(inviteCode));
+      })
+      .catch((err) => {
+        if (!cancelled) setDrawInviteError(err.message || "Failed to create invite link.");
+      })
+      .finally(() => {
+        if (!cancelled) setDrawInviteLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedNotification?.drawEventId, selectedNotification?.isDrawEvent, session?.user]);
+
+  const copyDrawInviteLink = async () => {
+    if (!drawInviteLink) return;
+
+    try {
+      await navigator.clipboard.writeText(drawInviteLink);
+      setDrawInviteCopied(true);
+      return;
+    } catch {
+      drawInviteInputRef.current?.select();
+      document.execCommand("copy");
+      setDrawInviteCopied(true);
     }
   };
 
@@ -1389,6 +1442,30 @@ function Navbar({ onProfileSave }) {
     setTimeout(() => {
       loginDropdownToggleRef.current?.click();
       navigate("/", { replace: true });
+    }, 0);
+  }, [routerLocation.pathname, routerLocation.search, navigate, session]);
+
+  useEffect(() => {
+    const inviteCode = getInviteCodeFromSearch(routerLocation.search);
+    if (!inviteCode) return;
+
+    if (session) {
+      inviteAuthOpenedRef.current = "";
+      navigate("/", { replace: true });
+      return;
+    }
+
+    storePendingInviteCode(inviteCode);
+    if (routerLocation.pathname !== "/") {
+      navigate(`/?invite=${encodeURIComponent(inviteCode)}`, { replace: true });
+      return;
+    }
+
+    if (inviteAuthOpenedRef.current === inviteCode) return;
+    inviteAuthOpenedRef.current = inviteCode;
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    setTimeout(() => {
+      loginDropdownToggleRef.current?.click();
     }, 0);
   }, [routerLocation.pathname, routerLocation.search, navigate, session]);
 
@@ -2170,6 +2247,36 @@ function Navbar({ onProfileSave }) {
                 <p className="mb-0" style={{ whiteSpace: "pre-wrap" }}>
                   {selectedNotification.body}
                 </p>
+                {selectedNotification.isDrawEvent && (
+                  <div className="mt-3">
+                    <label htmlFor="drawEventInviteLink" className="form-label">Draw Event Invite</label>
+                    <div className="input-group">
+                      <input
+                        id="drawEventInviteLink"
+                        ref={drawInviteInputRef}
+                        type="text"
+                        className="form-control"
+                        value={drawInviteLink}
+                        readOnly
+                        disabled={drawInviteLoading || !!drawInviteError}
+                      />
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={copyDrawInviteLink}
+                        disabled={!drawInviteLink || drawInviteLoading}
+                      >
+                        {drawInviteCopied ? "Copied" : "Copy"}
+                      </button>
+                    </div>
+                    {drawInviteLoading && (
+                      <small className="text-muted d-block mt-1">Creating invite link...</small>
+                    )}
+                    {drawInviteError && (
+                      <small className="text-danger d-block mt-1">{drawInviteError}</small>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>

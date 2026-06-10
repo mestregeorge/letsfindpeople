@@ -131,6 +131,7 @@ function Admin() {
   const [eventBody, setEventBody] = useState('');
   const [eventCoverFile, setEventCoverFile] = useState(null);
   const [eventCoverPreview, setEventCoverPreview] = useState('');
+  const [eventIsDrawEvent, setEventIsDrawEvent] = useState(false);
   const [eventSending, setEventSending] = useState(false);
   const [eventError, setEventError] = useState('');
   const maxPaginationPages = isCompactPagination
@@ -954,6 +955,7 @@ function Admin() {
     setEventBody('');
     setEventCoverFile(null);
     setEventCoverPreview('');
+    setEventIsDrawEvent(false);
     setEventError('');
     setShowEventModal(true);
   };
@@ -965,6 +967,7 @@ function Admin() {
     setEventBody('');
     setEventCoverFile(null);
     setEventCoverPreview('');
+    setEventIsDrawEvent(false);
     setEventError('');
   };
 
@@ -996,11 +999,12 @@ function Admin() {
         title: trimmedTitle,
         body: trimmedBody,
         coverUrl,
+        isDrawEvent: eventIsDrawEvent,
       });
       Promise.resolve(supabase.rpc('write_log', {
         p_action: 'ADMIN_SEND_NOTIFICATION',
         p_status: 'Success',
-        p_metadata: { title: trimmedTitle },
+        p_metadata: { title: trimmedTitle, isDrawEvent: eventIsDrawEvent },
       })).catch(() => {});
       closeEventModal({ force: true });
     } catch (err) {
@@ -1740,6 +1744,20 @@ function Admin() {
                       />
                     </div>
                   )}
+
+                  <div className="form-check mt-3">
+                    <input
+                      id="eventIsDrawEvent"
+                      type="checkbox"
+                      className="form-check-input"
+                      checked={eventIsDrawEvent}
+                      onChange={(e) => setEventIsDrawEvent(e.target.checked)}
+                      disabled={eventSending}
+                    />
+                    <label className="form-check-label" htmlFor="eventIsDrawEvent">
+                      Draw Event
+                    </label>
+                  </div>
                 </div>
                 <div className="modal-footer">
                   <button type="button" className="btn btn-secondary" onClick={() => closeEventModal()} disabled={eventSending}>

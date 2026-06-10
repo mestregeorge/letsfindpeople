@@ -260,6 +260,7 @@ function Navbar({ onProfileSave }) {
   const notificationsDropdownRef = useRef(null);
   const notificationsDropdownMenuRef = useRef(null);
   const contactErrorRef = useRef(null);
+  const chatMessagesBodyRef = useRef(null);
   const chatMessagesEndRef = useRef(null);
 
   const [keywordRequestStatuses, setKeywordRequestStatuses] = useState({});
@@ -1288,11 +1289,26 @@ function Navbar({ onProfileSave }) {
   }, [loadGlobalChatMessages, session?.user?.id, showChatModal]);
 
   useEffect(() => {
-    if (!showChatModal) return;
-    window.setTimeout(() => {
+    if (!showChatModal || chatLoading) return undefined;
+
+    const scrollToLatestMessage = () => {
+      const body = chatMessagesBodyRef.current;
+      if (body) {
+        body.scrollTop = body.scrollHeight;
+        return;
+      }
       chatMessagesEndRef.current?.scrollIntoView({ block: "end" });
-    }, 0);
-  }, [chatMessages.length, showChatModal]);
+    };
+
+    scrollToLatestMessage();
+    const frameId = window.requestAnimationFrame(scrollToLatestMessage);
+    const timeoutId = window.setTimeout(scrollToLatestMessage, 80);
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      window.clearTimeout(timeoutId);
+    };
+  }, [chatLoading, chatMessages.length, showChatModal]);
 
   useEffect(() => {
     if (!session?.user?.id) return;
@@ -1757,7 +1773,6 @@ function Navbar({ onProfileSave }) {
     !isAdminUser &&
     !["active", "canceling"].includes(savedProfile.subscriptionStatus)
   );
-  const showSearchNav = session && !isAdminUser && routerLocation.pathname !== "/";
   const showAdminNav = session && isAdminUser && routerLocation.pathname !== "/admin";
   const showChatNav = session && !isAdminUser;
   const showNotificationsNav = session && !isAdminUser;
@@ -1773,13 +1788,6 @@ function Navbar({ onProfileSave }) {
 
         <div className="navbar-collapse" id="navbarNavDropdown">
           <ul className="navbar-nav ms-auto align-items-center">
-
-            {/* Search Button - show when logged in */}
-            {showSearchNav && (
-            <Link className="nav-link" to="/">
-              Go to Search
-            </Link>
-            )}
 
             {showAdminNav && (
             <Link className="nav-link" to="/admin">
@@ -2004,7 +2012,11 @@ function Navbar({ onProfileSave }) {
                 <button type="button" className="btn-close" onClick={closeGlobalChat} aria-label="Close"></button>
               </div>
 
-              <div className="modal-body bg-light" style={{ height: "320px", overflowY: "auto" }}>
+              <div
+                className="modal-body bg-light"
+                ref={chatMessagesBodyRef}
+                style={{ height: "320px", overflowY: "auto" }}
+              >
                 {chatError && (
                   <div className="alert alert-danger py-2" role="alert">
                     {chatError}

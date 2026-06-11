@@ -1043,17 +1043,25 @@ function Admin() {
 
     try {
       const coverUrl = eventCoverFile ? await uploadNotificationCover(eventCoverFile) : '';
-      await createSiteNotification({
+      const notification = await createSiteNotification({
         title: trimmedTitle,
         body: trimmedBody,
         coverUrl,
         isDrawEvent: eventIsDrawEvent,
         deliveryScope: eventDeliveryScope,
       });
+      const action = eventIsDrawEvent ? 'ADMIN_CREATE_DRAW_EVENT' : 'ADMIN_SEND_NOTIFICATION';
       Promise.resolve(supabase.rpc('write_log', {
-        p_action: 'ADMIN_SEND_NOTIFICATION',
+        p_action: action,
         p_status: 'Success',
-        p_metadata: { title: trimmedTitle, isDrawEvent: eventIsDrawEvent, deliveryScope: eventDeliveryScope },
+        p_reason: eventIsDrawEvent ? `Created draw event: ${trimmedTitle}` : `Sent notification: ${trimmedTitle}`,
+        p_metadata: {
+          notificationId: notification?.id ?? null,
+          drawEventId: notification?.drawEventId ?? null,
+          title: trimmedTitle,
+          isDrawEvent: eventIsDrawEvent,
+          deliveryScope: eventDeliveryScope,
+        },
       })).catch(() => {});
       if (eventIsDrawEvent) fetchDrawEvents();
       closeEventModal({ force: true });
@@ -1076,6 +1084,7 @@ function Admin() {
       Promise.resolve(supabase.rpc('write_log', {
         p_action: 'ADMIN_DISABLE_DRAW_EVENT',
         p_status: 'Success',
+        p_reason: `Disabled draw event: ${event.title}`,
         p_metadata: { drawEventId: event.id, title: event.title },
       })).catch(() => {});
       fetchDrawEvents();
@@ -1094,7 +1103,15 @@ function Admin() {
         .insert({ name: trimmedName, id_subcategory: parseInt(newKeywordSubcategoryId, 10) });
       if (error) throw new Error(error.message);
       clearCatalogCache();
-      Promise.resolve(supabase.rpc('write_log', { p_action: 'ADMIN_ADD_KEYWORD', p_status: 'Success', p_metadata: { keywordName: trimmedName } })).catch(() => {});
+      Promise.resolve(supabase.rpc('write_log', {
+        p_action: 'ADMIN_ADD_KEYWORD',
+        p_status: 'Success',
+        p_reason: `Added keyword: ${trimmedName}`,
+        p_metadata: {
+          keywordName: trimmedName,
+          subcategoryId: parseInt(newKeywordSubcategoryId, 10),
+        },
+      })).catch(() => {});
       setShowAddKeywordModal(false);
       setKeywordSearchInput('');
       setKeywordSearch('');

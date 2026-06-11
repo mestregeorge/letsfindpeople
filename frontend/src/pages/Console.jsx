@@ -173,6 +173,8 @@ export default function Console({ currentUser }) {
   const showSearchInfo =
     !isAdmin &&
     (!!searchSetupMessage || !hasUnlimitedSearches || userCount >= 10000);
+  const showGetMoreDrawEvent =
+    freeSearchesRemaining <= 0 && !!latestDrawEventNotification;
   const isSearchBlocked = !isLoggedIn || !isProfileComplete;
   const hasTooManyKeywords = selectedKeywords.length > MAX_SEARCH_KEYWORDS;
   const isSearchDisabled =
@@ -617,8 +619,8 @@ export default function Console({ currentUser }) {
             </p>
           ) : !hasUnlimitedSearches && (
             <p className="console-free-searches-message text-muted mb-0">
-              *You have {freeSearchesRemaining} free {freeSearchesRemaining === 1 ? "search" : "searches"} remaining.
-              {freeSearchesRemaining <= 0 && latestDrawEventNotification && (
+              *You have {freeSearchesRemaining} free {freeSearchesRemaining === 1 ? "search" : "searches"} remaining{showGetMoreDrawEvent ? "." : ""}
+              {showGetMoreDrawEvent && (
                 <button
                   type="button"
                   className="console-get-more-link"

@@ -78,6 +78,18 @@
   min-width: 280px;
 }
 
+.navbar-login-toggle,
+.navbar-login-toggle:hover,
+.navbar-login-toggle:focus,
+.navbar-login-toggle:active,
+.navbar-login-toggle.show {
+  background: transparent !important;
+  box-shadow: none !important;
+  color: #ffffff !important;
+  outline: 0 !important;
+  -webkit-tap-highlight-color: transparent;
+}
+
 .navbar-notifications-dropdown {
   --navbar-notifications-offset-x: 0px;
   width: 240px;

@@ -1518,6 +1518,7 @@ function Navbar({ onProfileSave }) {
     window.scrollTo({ top: 0, behavior: "smooth" });
     setTimeout(() => {
       loginDropdownToggleRef.current?.click();
+      loginDropdownToggleRef.current?.blur();
       navigate("/", { replace: true });
     }, 0);
   }, [routerLocation.pathname, routerLocation.search, navigate, session]);
@@ -1543,6 +1544,7 @@ function Navbar({ onProfileSave }) {
     window.scrollTo({ top: 0, behavior: "smooth" });
     setTimeout(() => {
       loginDropdownToggleRef.current?.click();
+      loginDropdownToggleRef.current?.blur();
     }, 0);
   }, [routerLocation.pathname, routerLocation.search, navigate, session]);
 
@@ -2004,7 +2006,7 @@ function Navbar({ onProfileSave }) {
                   <div className="px-3 py-3 text-danger small">{notificationsError}</div>
                 ) : notifications.length === 0 ? (
                   <div className="px-3 py-4 text-center text-muted">
-                    No notifications yet.
+                    No notifications yet
                   </div>
                 ) : (
                   <div className="navbar-notifications-list">
@@ -2117,7 +2119,7 @@ function Navbar({ onProfileSave }) {
             {!session && (
             <div className="dropdown" ref={loginDropdownRef}>
               <a
-                className="nav-link dropdown-toggle"
+                className="nav-link dropdown-toggle navbar-login-toggle"
                 href="#"
                 role="button"
                 data-bs-toggle="dropdown"
@@ -2195,7 +2197,7 @@ function Navbar({ onProfileSave }) {
                 ) : chatMessages.length === 0 ? (
                   <div className="d-flex h-100 flex-column align-items-center justify-content-center text-center text-muted">
                     <i className="bi bi-chat-square-dots d-block fs-1 mb-2"></i>
-                    No messages yet.
+                    No messages yet
                   </div>
                 ) : (
                   <div className="d-flex flex-column gap-3">

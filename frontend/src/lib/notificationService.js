@@ -1,26 +1,48 @@
 import { supabase } from "./supabaseClient";
+import welcomeCoverUrl from "../assets/welcome.png";
 
 export const NOTIFICATION_TITLE_MAX_LENGTH = 120;
 export const NOTIFICATION_BODY_MAX_LENGTH = 2000;
 export const NOTIFICATION_COVER_MAX_SIZE = 3 * 1024 * 1024;
 export const OPEN_SITE_NOTIFICATION_EVENT = "lfp:open-site-notification";
+export const SITE_NOTIFICATION_DELIVERY_SCOPES = {
+  CURRENT_USERS: "current_users",
+  CURRENT_AND_FUTURE_USERS: "current_and_future_users",
+};
 
 const NOTIFICATION_COVER_BUCKET = "notification-covers";
 const ALLOWED_COVER_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 let notificationSubscriptionId = 0;
 
+function isWelcomeNotification(title, type) {
+  const normalizedTitle = String(title || "").trim().toLowerCase();
+  const normalizedType = String(type || "").trim().toLowerCase();
+
+  return (
+    normalizedType === "welcome" ||
+    normalizedType === "welcome_notification" ||
+    normalizedTitle === "welcome" ||
+    normalizedTitle.startsWith("welcome ")
+  );
+}
+
 function mapNotification(row) {
   const type = row.notification_type || "general";
+  const title = row.title || "";
+  const body = row.body || "";
   const drawEventId = row.draw_event_id == null ? null : Number(row.draw_event_id);
+  const coverUrl = row.cover_url || (isWelcomeNotification(title, type) ? welcomeCoverUrl : "");
 
   return {
     id: row.id_notification,
-    title: row.title || "",
-    body: row.body || "",
-    coverUrl: row.cover_url || "",
+    title,
+    body,
+    coverUrl,
     createdAt: row.created_at,
     isRead: !!row.is_read,
     isDisabled: !!row.is_disabled,
+    disabledAt: row.disabled_at || null,
+    deliveryScope: row.delivery_scope || SITE_NOTIFICATION_DELIVERY_SCOPES.CURRENT_AND_FUTURE_USERS,
     type,
     drawEventId,
     isDrawEvent: type === "draw_event" && Number.isFinite(drawEventId),
@@ -163,10 +185,37 @@ export async function uploadNotificationCover(file) {
   return data.publicUrl;
 }
 
-export async function createSiteNotification({ title, body, coverUrl, isDrawEvent = false }) {
+function getDeliveryScope(value) {
+  return Object.values(SITE_NOTIFICATION_DELIVERY_SCOPES).includes(value)
+    ? value
+    : SITE_NOTIFICATION_DELIVERY_SCOPES.CURRENT_USERS;
+}
+
+function isMissingDeliveryScopeRpcError(error) {
+  const message = [
+    error?.code,
+    error?.message,
+    error?.details,
+    error?.hint,
+  ].filter(Boolean).join(" ").toLowerCase();
+
+  return message.includes("p_delivery_scope") || (
+    message.includes("create_site_notification") &&
+    message.includes("schema cache")
+  );
+}
+
+export async function createSiteNotification({
+  title,
+  body,
+  coverUrl,
+  isDrawEvent = false,
+  deliveryScope = SITE_NOTIFICATION_DELIVERY_SCOPES.CURRENT_USERS,
+}) {
   const trimmedTitle = String(title || "").trim();
   const trimmedBody = String(body || "").trim();
   const trimmedCoverUrl = String(coverUrl || "").trim();
+  const normalizedDeliveryScope = getDeliveryScope(deliveryScope);
 
   if (!trimmedTitle) throw new Error("Title is required.");
   if (!trimmedBody) throw new Error("Description is required.");
@@ -177,12 +226,23 @@ export async function createSiteNotification({ title, body, coverUrl, isDrawEven
     throw new Error(`Description must be ${NOTIFICATION_BODY_MAX_LENGTH} characters or fewer.`);
   }
 
-  const { data, error } = await supabase.rpc("create_site_notification", {
+  let { data, error } = await supabase.rpc("create_site_notification", {
     p_title: trimmedTitle,
     p_body: trimmedBody,
     p_cover_url: trimmedCoverUrl || null,
     p_is_draw_event: !!isDrawEvent,
+    p_delivery_scope: normalizedDeliveryScope,
   });
+
+  if (error && isMissingDeliveryScopeRpcError(error)) {
+    ({ data, error } = await supabase.rpc("create_site_notification", {
+      p_title: trimmedTitle,
+      p_body: trimmedBody,
+      p_cover_url: trimmedCoverUrl || null,
+      p_is_draw_event: !!isDrawEvent,
+    }));
+  }
+
   if (error) throw new Error(error.message);
 
   const row = Array.isArray(data) ? data[0] : data;

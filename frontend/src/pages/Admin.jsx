@@ -5,6 +5,7 @@ import {
   createSiteNotification,
   NOTIFICATION_BODY_MAX_LENGTH,
   NOTIFICATION_TITLE_MAX_LENGTH,
+  SITE_NOTIFICATION_DELIVERY_SCOPES,
   uploadNotificationCover,
 } from '../lib/notificationService';
 
@@ -145,6 +146,7 @@ function Admin() {
   const [eventCoverFile, setEventCoverFile] = useState(null);
   const [eventCoverPreview, setEventCoverPreview] = useState('');
   const [eventIsDrawEvent, setEventIsDrawEvent] = useState(false);
+  const [eventDeliveryScope, setEventDeliveryScope] = useState(SITE_NOTIFICATION_DELIVERY_SCOPES.CURRENT_USERS);
   const [eventSending, setEventSending] = useState(false);
   const [eventError, setEventError] = useState('');
 
@@ -1000,6 +1002,7 @@ function Admin() {
     setEventCoverFile(null);
     setEventCoverPreview('');
     setEventIsDrawEvent(false);
+    setEventDeliveryScope(SITE_NOTIFICATION_DELIVERY_SCOPES.CURRENT_USERS);
     setEventError('');
     setShowEventModal(true);
   };
@@ -1012,6 +1015,7 @@ function Admin() {
     setEventCoverFile(null);
     setEventCoverPreview('');
     setEventIsDrawEvent(false);
+    setEventDeliveryScope(SITE_NOTIFICATION_DELIVERY_SCOPES.CURRENT_USERS);
     setEventError('');
   };
 
@@ -1044,11 +1048,12 @@ function Admin() {
         body: trimmedBody,
         coverUrl,
         isDrawEvent: eventIsDrawEvent,
+        deliveryScope: eventDeliveryScope,
       });
       Promise.resolve(supabase.rpc('write_log', {
         p_action: 'ADMIN_SEND_NOTIFICATION',
         p_status: 'Success',
-        p_metadata: { title: trimmedTitle, isDrawEvent: eventIsDrawEvent },
+        p_metadata: { title: trimmedTitle, isDrawEvent: eventIsDrawEvent, deliveryScope: eventDeliveryScope },
       })).catch(() => {});
       if (eventIsDrawEvent) fetchDrawEvents();
       closeEventModal({ force: true });
@@ -1838,6 +1843,24 @@ function Admin() {
                       style={{ height: '96px', resize: 'none' }}
                       required
                     ></textarea>
+                  </div>
+
+                  <div className="mb-3">
+                    <label htmlFor="eventDeliveryScope" className="form-label">Delivery</label>
+                    <select
+                      id="eventDeliveryScope"
+                      className="form-select"
+                      value={eventDeliveryScope}
+                      onChange={(e) => setEventDeliveryScope(e.target.value)}
+                      disabled={eventSending}
+                    >
+                      <option value={SITE_NOTIFICATION_DELIVERY_SCOPES.CURRENT_USERS}>
+                        Send just to current users
+                      </option>
+                      <option value={SITE_NOTIFICATION_DELIVERY_SCOPES.CURRENT_AND_FUTURE_USERS}>
+                        Send to current and future users
+                      </option>
+                    </select>
                   </div>
 
                   <div className="mb-3">

@@ -4,7 +4,7 @@ export default function Terms() {
       <h1 className="policy-title">Terms &amp; Conditions</h1>
       <div className="policy-content">
         <p>
-          <strong>Last updated: 22 April 2026</strong>
+          <strong>Last updated: 11 June 2026</strong>
         </p>
 
         <p>
@@ -23,7 +23,8 @@ export default function Terms() {
         <p>
           You must provide accurate and complete information when creating your
           profile. You are responsible for maintaining the security of your
-          account. Sharing your login credentials with others is not permitted.
+          account and the Google account used to sign in. Sharing your login
+          credentials with others is not permitted.
         </p>
 
         <h4>3. Acceptable Use</h4>
@@ -53,6 +54,11 @@ export default function Terms() {
           <li>Impersonate another person or create a false profile.</li>
           <li>Use the Service to harass, stalk, spam, or harm other users.</li>
           <li>
+            Send abusive, threatening, unlawful, explicit, misleading, or
+            otherwise harmful content through global chat, notifications,
+            invites, keyword requests, profile fields, or uploaded images.
+          </li>
+          <li>
             Attempt to reverse-engineer, decompile, or tamper with any part of
             the Service.
           </li>
@@ -66,12 +72,24 @@ export default function Terms() {
         <p>
           You are solely responsible for the information you submit to your
           profile, including your name, location, contact details, profile
-          picture, and interest selections. You grant LetsFindPeople a
-          non-exclusive licence to display this information to other users of the
-          Service as intended by its functionality.
+          picture, interest selections, keyword requests, uploaded images, and
+          messages you send through the Service. You must have the rights needed
+          to upload or submit that content. You grant LetsFindPeople a
+          non-exclusive licence to store, moderate, and display this information
+          to other users of the Service as intended by its functionality.
         </p>
 
-        <h4>5. Subscription Plans</h4>
+        <h4>5. Chat, Notifications, and Invites</h4>
+        <p>
+          The Service may include international chat, in-app notifications, and
+          draw-event invite links. Chat messages are visible to signed-in users
+          and may be removed or moderated if they violate these Terms.
+          Notifications and draw-event invites are provided for site updates,
+          events, and related signup flows. You must not use these features to
+          spam, deceive, pressure, or abuse other users.
+        </p>
+
+        <h4>6. Subscription Plans</h4>
         <p>
           The Service offers a free trial with limited searches, and a paid Basic
           Plan for unlimited searches. Subscriptions are billed monthly. You may
@@ -81,47 +99,48 @@ export default function Terms() {
           billing period (see Refunds Policy).
         </p>
 
-        <h4>6. Free Trial Limits</h4>
+        <h4>7. Free Trial Limits</h4>
         <p>
           Free trial users are limited to a set number of searches. Attempting
           to bypass these limits through multiple accounts or automated means is
           a violation of these Terms.
         </p>
 
-        <h4>7. Termination</h4>
+        <h4>8. Moderation and Termination</h4>
         <p>
-          We reserve the right to suspend or permanently terminate your account
-          at any time, without notice, if we determine that you have violated
-          these Terms or engaged in abusive, fraudulent, or harmful behaviour.
+          We reserve the right to remove content, limit features, temporarily
+          suspend access, ban an account, or permanently terminate an account at
+          any time, without notice, if we determine that you have violated these
+          Terms or engaged in abusive, fraudulent, or harmful behaviour.
         </p>
 
-        <h4>8. Disclaimer of Warranties</h4>
+        <h4>9. Disclaimer of Warranties</h4>
         <p>
           The Service is provided &quot;as is&quot; without warranties of any kind.
           We do not guarantee that the Service will be uninterrupted, error-free,
           or that search results will meet your expectations.
         </p>
 
-        <h4>9. Limitation of Liability</h4>
+        <h4>10. Limitation of Liability</h4>
         <p>
           To the maximum extent permitted by applicable law, LetsFindPeople shall
           not be liable for any indirect, incidental, special, or consequential
           damages arising from your use of the Service.
         </p>
 
-        <h4>10. Governing Law</h4>
+        <h4>11. Governing Law</h4>
         <p>
           These Terms are governed by the laws of Portugal. Any disputes shall be
           subject to the exclusive jurisdiction of the Portuguese courts.
         </p>
 
-        <h4>11. Changes to These Terms</h4>
+        <h4>12. Changes to These Terms</h4>
         <p>
           We may update these Terms at any time. Continued use of the Service
           after changes are posted constitutes acceptance of the revised Terms.
         </p>
 
-        <h4>12. Contact</h4>
+        <h4>13. Contact</h4>
         <p>
           For questions about these Terms, contact us at:{" "}
           <a href="mailto:contact@letsfindpeople.com">

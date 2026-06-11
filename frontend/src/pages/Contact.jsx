@@ -4,7 +4,7 @@ export default function Contact() {
       <h1 className="policy-title">Contact Information</h1>
       <div className="policy-content">
         <p>
-          <strong>Last updated: 22 April 2026</strong>
+          <strong>Last updated: 11 June 2026</strong>
         </p>
 
         <p>
@@ -27,13 +27,18 @@ export default function Contact() {
         <ul>
           <li>The email address associated with your account.</li>
           <li>A clear description of your issue or question.</li>
+          <li>
+            The related feature, such as profile setup, search, chat,
+            notifications, invite links, subscriptions, or account access.
+          </li>
           <li>Any relevant screenshots, if applicable.</li>
         </ul>
 
         <h4>Topics We Can Help With</h4>
         <ul>
           <li>Account access and login issues.</li>
-          <li>Profile and keyword questions.</li>
+          <li>Profile, profile picture, search, and keyword questions.</li>
+          <li>International chat, notifications, and draw-event invite links.</li>
           <li>
             Subscription and billing enquiries (note: we do not issue refunds --
             see our Refunds Policy).

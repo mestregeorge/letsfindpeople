@@ -4,12 +4,12 @@ export default function Cookies() {
       <h1 className="policy-title">Cookies Policy</h1>
       <div className="policy-content">
         <p>
-          <strong>Last updated: 22 April 2026</strong>
+          <strong>Last updated: 11 June 2026</strong>
         </p>
 
         <p>
           This Cookies Policy explains how LetsFindPeople uses cookies and
-          similar technologies on our website.
+          similar technologies, including browser local storage, on our website.
         </p>
 
         <h4>1. What Are Cookies?</h4>
@@ -17,6 +17,8 @@ export default function Cookies() {
           Cookies are small text files placed on your device by a website when
           you visit it. They are widely used to make websites work, improve
           performance, and provide information to the site owner.
+          Local storage works in a similar way by saving small pieces of data in
+          your browser.
         </p>
 
         <h4>2. Cookies We Use</h4>
@@ -41,25 +43,29 @@ export default function Cookies() {
             <strong>Session cookies:</strong> maintain your session state (e.g.
             your current search or profile edit in progress).
           </li>
+          <li>
+            <strong>Invite and catalog storage:</strong> remember a pending
+            draw-event invite code and cache the keyword catalog so the Service
+            loads faster.
+          </li>
         </ul>
 
         <p>
-          <strong>Functional Cookies (optional)</strong>
+          <strong>Functional Storage</strong>
           <br />
-          These cookies remember your preferences to improve your experience,
-          such as your chosen language or display settings. We only set these
-          with your consent.
+          We may use cookies or local storage to remember preferences and
+          improve your experience, such as cached keyword data, display settings,
+          or other choices you make in the Service.
         </p>
 
         <p>
-          <strong>Analytics Cookies (optional)</strong>
+          <strong>Analytics and Visit Counting</strong>
           <br />
-          With your consent, we may use analytics cookies to understand how users
-          interact with the Service -- for example, which keywords are searched
-          most, how users navigate the site, and where users drop off in the
-          registration flow. This data is collected in aggregate and pseudonymous
-          form and is used solely to improve the Service. No analytics cookies
-          are set until you provide consent.
+          We may use cookies, local storage, or server-side logs to understand
+          how users interact with the Service -- for example, page visits,
+          popular features, search activity, and registration flow performance.
+          This data is collected in aggregate or pseudonymous form and is used
+          solely to improve and protect the Service.
         </p>
 
         <h4>3. We Do Not Use Advertising Cookies</h4>

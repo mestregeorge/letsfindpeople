@@ -4,12 +4,13 @@ export default function Refunds() {
       <h1 className="policy-title">Refunds Policy</h1>
       <div className="policy-content">
         <p>
-          <strong>Last updated: 22 April 2026</strong>
+          <strong>Last updated: 11 June 2026</strong>
         </p>
 
         <p>
           Please read this Refunds Policy carefully before subscribing to any
-          paid plan on LetsFindPeople.
+          paid plan on LetsFindPeople. Paid subscriptions are processed through
+          Stripe.
         </p>
 
         <h4>1. No Refunds</h4>
@@ -24,7 +25,8 @@ export default function Refunds() {
           <li>Dissatisfaction with the Service or search results.</li>
           <li>Accidental purchases.</li>
           <li>
-            Account suspension due to violation of our Terms &amp; Conditions.
+            Account suspension, ban, or deletion due to violation of our Terms
+            &amp; Conditions.
           </li>
         </ul>
 

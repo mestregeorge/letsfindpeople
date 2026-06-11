@@ -4,7 +4,7 @@ export default function Privacy() {
       <h1 className="policy-title">Privacy Policy</h1>
       <div className="policy-content">
         <p>
-          <strong>Last updated: 22 April 2026</strong>
+          <strong>Last updated: 11 June 2026</strong>
         </p>
 
         <p>
@@ -38,7 +38,9 @@ export default function Privacy() {
           </li>
           <li>
             <strong>Location data:</strong> city and country you provide or
-            detect via your browser&apos;s geolocation API.
+            detect via your browser&apos;s geolocation API. Browser location is
+            requested only when you choose to use the automatic location
+            option.
           </li>
           <li>
             <strong>Interest data:</strong> keywords, answers to interest
@@ -50,6 +52,17 @@ export default function Privacy() {
             information, and usage logs automatically collected when you use the
             Service.
           </li>
+          <li>
+            <strong>Communications data:</strong> global chat messages you send,
+            notification read or dismissal status, draw-event invite activity,
+            and keyword requests you submit.
+          </li>
+          <li>
+            <strong>Payment and subscription data:</strong> subscription status,
+            Stripe customer and subscription identifiers, and billing events
+            needed to manage paid plans. We do not store your full payment card
+            details.
+          </li>
         </ul>
 
         <h4>2. How We Use Your Information</h4>
@@ -60,6 +73,10 @@ export default function Privacy() {
             searches.
           </li>
           <li>To process subscription payments and manage your plan.</li>
+          <li>
+            To provide global chat, in-app notifications, draw-event invites,
+            keyword requests, and other account features.
+          </li>
           <li>
             To detect and prevent abuse, scraping, unauthorised access, and
             spam.
@@ -81,9 +98,17 @@ export default function Privacy() {
 
         <h4>4. Data Visibility</h4>
         <p>
+          Your public profile may show your name, profile picture, location, and
+          selected interests when another user finds you through the Service.
           Contact information (phone number, social media usernames) is only
           shown to other users if you explicitly enable the visibility toggle for
           each field. Your email address is never shown publicly.
+        </p>
+        <p>
+          Messages sent in the international chat are visible to signed-in users
+          and may show your name and profile picture. Site notifications and
+          draw-event invites may record whether you have received, opened,
+          dismissed, or completed the related signup flow.
         </p>
 
         <h4>5. Data Sharing</h4>
@@ -95,8 +120,9 @@ export default function Privacy() {
         <ul>
           <li>
             Third-party service providers who assist us in operating the Service
-            (e.g. payment processors, hosting providers), bound by
-            confidentiality agreements.
+            (e.g. Google authentication, Supabase hosting, database and storage,
+            and Stripe payment processing), bound by appropriate confidentiality
+            or data-processing terms.
           </li>
           <li>
             Law enforcement or regulatory authorities if required by applicable
@@ -108,7 +134,11 @@ export default function Privacy() {
         <p>
           We retain your personal data for as long as your account is active or
           as needed to provide the Service. You may request deletion of your
-          account and data at any time by contacting us.
+          account and data at any time by contacting us. Global chat messages
+          are designed to be short-lived and are retained for up to 7 days.
+          Certain security logs, billing records, moderation records, and
+          account deletion records may be retained where needed for legal,
+          accounting, security, or abuse-prevention purposes.
         </p>
 
         <h4>7. Your Rights (GDPR)</h4>

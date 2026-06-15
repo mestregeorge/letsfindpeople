@@ -1208,7 +1208,13 @@ function Navbar({ onProfileSave }) {
         listSiteNotifications(),
         getUnreadSiteNotificationCount(),
       ]);
-      setNotifications(items);
+      // Always show the one-time welcome notification (type = 'direct') first.
+      const sorted = [...items].sort((a, b) => {
+        const aIsWelcome = a.type === "direct" ? 0 : 1;
+        const bIsWelcome = b.type === "direct" ? 0 : 1;
+        return aIsWelcome - bIsWelcome;
+      });
+      setNotifications(sorted);
       setUnreadNotifications(unreadCount);
     } catch (err) {
       setNotificationsError(err.message || "Failed to load notifications.");

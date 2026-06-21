@@ -161,6 +161,16 @@ function formatNotificationTimestamp(value) {
   }).format(date);
 }
 
+function formatAnalyticsViewTime(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).format(date);
+}
+
 function buildDrawInviteShareMessage() {
   return "What if someone exactly like you already exists 🤔? Find out on https://letsfindpeople.com";
 }
@@ -2629,7 +2639,14 @@ function Navbar({ onProfileSave }) {
                                       alt={viewer.viewerName}
                                       className="analytics-viewer-avatar"
                                     />
-                                    <span className="analytics-viewer-name">{viewer.viewerName}</span>
+                                    <div className="analytics-viewer-name-line">
+                                      <span className="analytics-viewer-name">{viewer.viewerName}</span>
+                                      {viewer.createdAt && (
+                                        <span className="analytics-viewer-time">
+                                          {formatAnalyticsViewTime(viewer.createdAt)}
+                                        </span>
+                                      )}
+                                    </div>
                                   </div>
                                   <div className="analytics-viewer-keywords">
                                     {keywordLabels.length > 0 ? keywordLabels.join(", ") : "Direct profile view"}

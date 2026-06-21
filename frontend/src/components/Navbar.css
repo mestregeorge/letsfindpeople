@@ -170,7 +170,6 @@
 }
 
 .analytics-summary-tile {
-  background: #f8f9fa;
   border: 1px solid var(--bs-border-color);
   border-radius: 8px;
   min-height: 88px;
@@ -186,8 +185,8 @@
 
 .analytics-summary-label {
   color: #6c757d;
-  font-size: 0.82rem;
-  line-height: 1.25;
+  font-size: 1rem;
+  line-height: 1.5;
   margin-top: 0.35rem;
 }
 
@@ -465,10 +464,6 @@
 }
 
 @media (max-width: 575.98px) {
-  .analytics-summary-grid {
-    grid-template-columns: 1fr;
-  }
-
   .analytics-viewer-row {
     grid-template-columns: minmax(0, 1fr) auto;
   }

@@ -2633,25 +2633,23 @@ function Navbar({ onProfileSave }) {
                             return (
                               <div key={viewer.id || `${viewer.viewerUserId}-${index}`}>
                                 <div className="analytics-viewer-row">
+                                  <div className="analytics-viewer-count">+1</div>
                                   <div className="analytics-viewer-person">
                                     <img
                                       src={viewer.viewerProfileUrl || defaultProfile}
                                       alt={viewer.viewerName}
                                       className="analytics-viewer-avatar"
                                     />
-                                    <div className="analytics-viewer-name-line">
-                                      <span className="analytics-viewer-name">{viewer.viewerName}</span>
-                                      {viewer.createdAt && (
-                                        <span className="analytics-viewer-time">
-                                          {formatAnalyticsViewTime(viewer.createdAt)}
-                                        </span>
-                                      )}
-                                    </div>
+                                    <span className="analytics-viewer-name">{viewer.viewerName}</span>
                                   </div>
+                                  {viewer.createdAt && (
+                                    <div className="analytics-viewer-time">
+                                      {formatAnalyticsViewTime(viewer.createdAt)}
+                                    </div>
+                                  )}
                                   <div className="analytics-viewer-keywords">
                                     {keywordLabels.length > 0 ? keywordLabels.join(", ") : "Direct profile view"}
                                   </div>
-                                  <div className="analytics-viewer-count">+1</div>
                                 </div>
                                 {index < analytics.viewers.length - 1 && <hr className="analytics-viewer-divider" />}
                               </div>

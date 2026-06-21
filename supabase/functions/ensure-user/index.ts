@@ -10,6 +10,8 @@
 // Authorization header.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { buildSignupEmail } from "../_shared/emailTemplates.ts";
+import { sendEmail } from "../_shared/resend.ts";
 
 function toOrigin(url: string | null) {
   if (!url) return null;
@@ -86,6 +88,62 @@ function getInviteDisplayName(user: unknown, email: string) {
   return String(name || email || "Someone you invited").trim();
 }
 
+function getEmailDisplayName(user: unknown, dbUser: unknown, email: string) {
+  const metadata = user?.user_metadata ?? {};
+  const authName =
+    metadata.full_name ||
+    metadata.name ||
+    [metadata.given_name, metadata.family_name].filter(Boolean).join(" ");
+  const dbName = [dbUser?.first_name, dbUser?.last_name].filter(Boolean).join(" ");
+  return String(authName || dbName || email || "").trim();
+}
+
+function isGoogleUser(user: unknown) {
+  const provider = user?.app_metadata?.provider;
+  if (provider === "google") return true;
+
+  const providers = user?.app_metadata?.providers;
+  if (Array.isArray(providers) && providers.includes("google")) return true;
+
+  return Array.isArray(user?.identities) &&
+    user.identities.some((identity) => identity?.provider === "google");
+}
+
+async function sendSignupEmailIfNeeded(
+  supabase: ReturnType<typeof createClient>,
+  dbUser: unknown,
+  authUser: unknown,
+) {
+  if (!isGoogleUser(authUser)) return;
+  if (!dbUser?.email || dbUser?.signup_email_sent_at) return;
+
+  try {
+    const template = buildSignupEmail({
+      displayName: getEmailDisplayName(authUser, dbUser, dbUser.email),
+    });
+
+    await sendEmail(
+      {
+        to: dbUser.email,
+        ...template,
+        tags: [
+          { name: "kind", value: "signup" },
+          { name: "user_id", value: String(dbUser.id_user) },
+        ],
+      },
+      `signup-${dbUser.id_user}`,
+    );
+
+    await supabase
+      .from("users")
+      .update({ signup_email_sent_at: new Date().toISOString() })
+      .eq("id_user", dbUser.id_user)
+      .is("signup_email_sent_at", null);
+  } catch (err) {
+    console.error("[sendSignupEmailIfNeeded]", (err as Error).message);
+  }
+}
+
 async function recordPendingInvite(
   supabase: ReturnType<typeof createClient>,
   inviteCode: number | null,
@@ -154,7 +212,7 @@ Deno.serve(async (req: Request) => {
   // 1. Lookup by supabase_uid (returning user).
   const { data: byUid } = await supabase
     .from("users")
-    .select("id_user, is_deleted, is_banned, suspended_until")
+    .select("id_user, email, first_name, last_name, is_deleted, is_banned, suspended_until, signup_email_sent_at")
     .eq("supabase_uid", supabaseUid)
     .maybeSingle();
 
@@ -178,7 +236,7 @@ Deno.serve(async (req: Request) => {
   // 2. Lookup by email — links an orphan row (e.g. seeded data) to the new UID.
   const { data: byEmail } = await supabase
     .from("users")
-    .select("id_user, is_deleted, is_banned, suspended_until")
+    .select("id_user, email, first_name, last_name, is_deleted, is_banned, suspended_until, signup_email_sent_at")
     .eq("email", email)
     .maybeSingle();
 
@@ -199,6 +257,7 @@ Deno.serve(async (req: Request) => {
       .from("users")
       .update({ supabase_uid: supabaseUid })
       .eq("id_user", byEmail.id_user);
+    await sendSignupEmailIfNeeded(supabase, byEmail, user);
     await writeLog(supabase, byEmail.id_user, "LOG_IN", "Success");
     return json(req, { user: byEmail, created: false });
   }
@@ -207,7 +266,7 @@ Deno.serve(async (req: Request) => {
   const { data: newUser, error: insertErr } = await supabase
     .from("users")
     .insert({ supabase_uid: supabaseUid, email, id_type: 1 })
-    .select("id_user")
+    .select("id_user, email, first_name, last_name, signup_email_sent_at")
     .single();
 
   if (insertErr) {
@@ -215,11 +274,12 @@ Deno.serve(async (req: Request) => {
     if (insertErr.code === "23505") {
       const { data: existing } = await supabase
         .from("users")
-        .select("id_user")
+        .select("id_user, email, first_name, last_name, signup_email_sent_at")
         .eq("supabase_uid", supabaseUid)
         .maybeSingle();
       if (existing) {
         await recordPendingInvite(supabase, inviteCode, existing.id_user, invitedDisplayName);
+        await sendSignupEmailIfNeeded(supabase, existing, user);
         await writeLog(supabase, existing.id_user, "CREATE_ACCOUNT", "Success");
         return json(req, { user: existing, created: true });
       }
@@ -229,6 +289,7 @@ Deno.serve(async (req: Request) => {
   }
 
   await recordPendingInvite(supabase, inviteCode, newUser.id_user, invitedDisplayName);
+  await sendSignupEmailIfNeeded(supabase, newUser, user);
   await writeLog(supabase, newUser.id_user, "CREATE_ACCOUNT", "Success");
   return json(req, { user: newUser, created: true });
 });

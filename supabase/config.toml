@@ -50,6 +50,12 @@ enable_confirmations = false
 #   STRIPE_SECRET_KEY
 #   STRIPE_WEBHOOK_SECRET
 #   STRIPE_PRICE_ID
+#   RESEND_API_KEY
+#   RESEND_FROM_EMAIL=no-reply@letsfindpeople.com
+# Optional email secrets:
+#   RESEND_FROM_NAME=LetsFindPeople
+#   EMAIL_LOGO_URL=https://letsfindpeople.com/logo.png
+#   DRAW_EVENT_EMAIL_MAX_RECIPIENTS=5000
 
 [functions.stripe-webhook]
 verify_jwt = false

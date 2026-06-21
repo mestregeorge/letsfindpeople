@@ -254,6 +254,18 @@ export async function createSiteNotification({
   return row ? mapNotification(row) : null;
 }
 
+export async function sendDrawEventEmail(drawEventId) {
+  const id = Number(drawEventId);
+  if (!Number.isInteger(id) || id <= 0) throw new Error("Invalid draw event.");
+
+  const { data, error } = await supabase.functions.invoke("send-draw-event-email", {
+    body: { drawEventId: id },
+  });
+  if (error) throw new Error(error.message);
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
 export async function getOrCreateDrawEventInvite(drawEventId) {
   const id = Number(drawEventId);
   if (!Number.isInteger(id) || id <= 0) throw new Error("Invalid draw event.");

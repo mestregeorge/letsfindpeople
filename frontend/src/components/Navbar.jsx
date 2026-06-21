@@ -5,7 +5,7 @@ import defaultProfile from "../assets/default-profile.jpg";
 import { useDbData } from "../context/DbDataContext";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabaseClient";
-import { updateUserProfile, deleteUser, getUserProfile, uploadProfilePicture } from "../lib/userService";
+import { updateUserProfile, deleteUser, getUserProfile, sendProfileCompletedEmail, uploadProfilePicture } from "../lib/userService";
 import { requestKeyword } from "../lib/catalogService";
 import {
   CHAT_MAX_MESSAGE_LENGTH,
@@ -2067,6 +2067,9 @@ function Navbar({ onProfileSave }) {
           },
           keywordIds
         );
+        sendProfileCompletedEmail().catch((err) => {
+          console.warn("Failed to send profile completed email:", err.message);
+        });
       } catch (err) {
         console.error("Failed to save profile to DB:", err.message);
       }

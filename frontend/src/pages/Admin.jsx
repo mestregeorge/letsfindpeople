@@ -5,6 +5,7 @@ import {
   createSiteNotification,
   NOTIFICATION_BODY_MAX_LENGTH,
   NOTIFICATION_TITLE_MAX_LENGTH,
+  sendDrawEventEmail,
   SITE_NOTIFICATION_DELIVERY_SCOPES,
   uploadNotificationCover,
 } from '../lib/notificationService';
@@ -1050,6 +1051,14 @@ function Admin() {
         isDrawEvent: eventIsDrawEvent,
         deliveryScope: eventDeliveryScope,
       });
+      if (eventIsDrawEvent && notification?.drawEventId) {
+        try {
+          await sendDrawEventEmail(notification.drawEventId);
+        } catch (emailErr) {
+          console.error('Failed to send draw event emails:', emailErr.message);
+          alert(`Draw event created, but email delivery failed: ${emailErr.message}`);
+        }
+      }
       const action = eventIsDrawEvent ? 'ADMIN_CREATE_DRAW_EVENT' : 'ADMIN_SEND_NOTIFICATION';
       Promise.resolve(supabase.rpc('write_log', {
         p_action: action,

@@ -90,6 +90,15 @@ export async function completeDrawEventPendingInviteSignup() {
   return !!data;
 }
 
+export async function sendProfileCompletedEmail() {
+  const { data, error } = await supabase.functions.invoke("send-profile-completed-email", {
+    body: {},
+  });
+  if (error) throw new Error(error.message);
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
 // ── getUserProfile ────────────────────────────────────────────────────────────
 /**
  * Fetches the full profile + keyword IDs for the currently authenticated user.

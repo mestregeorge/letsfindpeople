@@ -4,9 +4,9 @@ import defaultProfile from "../assets/default-profile.jpg";
 import { useDbData } from "../context/DbDataContext";
 import { useAuth } from "../context/AuthContext";
 import { searchUsers, consumeSearchAllowance, requestKeyword, getUserCount, getPublicUserById } from "../lib/catalogService";
+import { recordProfileView, recordSearchAnalytics } from "../lib/analyticsService";
 import {
   getLatestEnabledDrawEventNotification,
-  openSiteNotificationModal,
   removeSiteNotificationSubscription,
   subscribeToSiteNotifications,
 } from "../lib/notificationService";
@@ -128,7 +128,7 @@ export default function Console({ currentUser }) {
   const [freeSearchesResetAt, setFreeSearchesResetAt] = useState(
     currentUser?.freeSearchesResetAt ?? null
   );
-  const [latestDrawEventNotification, setLatestDrawEventNotification] = useState(null);
+  const [_latestDrawEventNotification, setLatestDrawEventNotification] = useState(null);
 
   const hasUnlimitedSearches =
     isAdmin ||
@@ -226,6 +226,11 @@ export default function Console({ currentUser }) {
       .then((person) => {
         if (!isMounted) return;
         setSearchResults(person ? [person] : []);
+        if (person) {
+          recordProfileView(userId).catch((err) => {
+            console.warn("Failed to record profile view:", err.message);
+          });
+        }
         navigate("/", { replace: true });
       })
       .catch((err) => {
@@ -452,6 +457,12 @@ export default function Console({ currentUser }) {
       }
 
       const { users } = await searchUsers(selectedKeywords);
+      recordSearchAnalytics(
+        selectedKeywords,
+        users.map((user) => user.id)
+      ).catch((err) => {
+        console.warn("Failed to record search analytics:", err.message);
+      });
       // Filter out the current user from backend results to avoid duplicate
       const filtered = session?.user?.id
         ? users.filter(u => u.supabaseUid !== session.user.id)

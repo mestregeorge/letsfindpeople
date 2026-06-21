@@ -17,6 +17,7 @@ import {
   subscribeToGlobalChatMessages,
 } from "../lib/chatService";
 import { buildInviteUrl, getInviteCodeFromSearch, storePendingInviteCode } from "../lib/inviteService";
+import { getMyProfileAnalytics } from "../lib/analyticsService";
 import {
   getOrCreateDrawEventInvite,
   getUnreadSiteNotificationCount,
@@ -372,6 +373,15 @@ function Navbar({ onProfileSave }) {
     });
     return map;
   }, [dbData]);
+  const analyticsKeywordNameMap = useMemo(() => {
+    const map = {};
+    (dbData?.categories ?? []).forEach(cat => {
+      cat.subcategories.forEach(sub => {
+        sub.items.forEach(item => { map[item.id] = item.name; });
+      });
+    });
+    return map;
+  }, [dbData]);
   const keywordPrimarySelectorMap = useMemo(() => {
     const map = {};
     const selectorSources = {
@@ -414,6 +424,7 @@ function Navbar({ onProfileSave }) {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [authError, setAuthError] = useState("");
   const [showCancelSubModal, setShowCancelSubModal] = useState(false);
+  const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editStage, setEditStage] = useState(1);
   const [validated, setValidated] = useState(false);
@@ -555,10 +566,18 @@ function Navbar({ onProfileSave }) {
   const [drawInviteError, setDrawInviteError] = useState("");
   const [drawInviteShareNotice, setDrawInviteShareNotice] = useState("");
   const [drawInviteCompleted, setDrawInviteCompleted] = useState(false);
+  const [analytics, setAnalytics] = useState({
+    totalSearchesDone: 0,
+    totalTimesSearched: 0,
+    totalProfileViews: 0,
+    viewers: [],
+  });
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [analyticsError, setAnalyticsError] = useState("");
 
   // tracks whether we've already hydrated state from the DB for the current session
   const [profileLoaded, setProfileLoaded] = useState(false);
-  const isModalOpen = showCancelSubModal || showEditModal || showChatModal || !!selectedNotification;
+  const isModalOpen = showCancelSubModal || showAnalyticsModal || showEditModal || showChatModal || !!selectedNotification;
 
   // Reset profile state when the user logs out
   useEffect(() => {
@@ -585,6 +604,14 @@ function Navbar({ onProfileSave }) {
       setUnreadNotifications(0);
       setNotificationsError("");
       setSelectedNotification(null);
+      setShowAnalyticsModal(false);
+      setAnalyticsError("");
+      setAnalytics({
+        totalSearchesDone: 0,
+        totalTimesSearched: 0,
+        totalProfileViews: 0,
+        viewers: [],
+      });
     }
   }, [session]);
 
@@ -1415,6 +1442,26 @@ function Navbar({ onProfileSave }) {
     setEditStage(1);
   };
 
+  const loadAnalytics = useCallback(async () => {
+    if (!session?.user?.id) return;
+
+    setAnalyticsLoading(true);
+    setAnalyticsError("");
+
+    try {
+      setAnalytics(await getMyProfileAnalytics(25));
+    } catch (err) {
+      setAnalyticsError(err.message || "Failed to load analytics.");
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  }, [session?.user?.id]);
+
+  const openAnalytics = () => {
+    setShowAnalyticsModal(true);
+    loadAnalytics();
+  };
+
   useEffect(() => {
     const searchParams = new URLSearchParams(routerLocation.search);
     if (searchParams.get("subscribed") !== "1") return;
@@ -1434,6 +1481,7 @@ function Navbar({ onProfileSave }) {
   useEffect(() => {
     if (routerLocation.pathname !== "/") return;
     setShowCancelSubModal(false);
+    setShowAnalyticsModal(false);
     setShowEditModal(false);
     setShowChatModal(false);
     setSelectedNotification(null);
@@ -2045,6 +2093,18 @@ function Navbar({ onProfileSave }) {
   const showNotificationsNav = session && !isAdminUser;
   const chatBadgeLabel = unreadChatMessages > 99 ? "99+" : String(unreadChatMessages);
   const notificationBadgeLabel = unreadNotifications > 99 ? "99+" : String(unreadNotifications);
+  const analyticsSummaryItems = [
+    { label: "Total searches done", value: analytics.totalSearchesDone },
+    { label: "Times you appeared in search", value: analytics.totalTimesSearched },
+    { label: "Profile views", value: analytics.totalProfileViews },
+  ];
+  const getAnalyticsKeywordLabels = (viewer) => (
+    viewer.keywordNames?.length
+      ? viewer.keywordNames
+      : (viewer.keywordIds || [])
+      .map((id) => analyticsKeywordNameMap[id])
+      .filter(Boolean)
+  );
 
   return (
     <>
@@ -2228,6 +2288,7 @@ function Navbar({ onProfileSave }) {
 
                   <ul className="dropdown-menu dropdown-menu-end">
                     <li><a className="dropdown-item" href="#" onClick={(e) => { e.preventDefault(); openEditProfile(); }}>Edit Profile</a></li>
+                    <li><a className="dropdown-item" href="#" onClick={(e) => { e.preventDefault(); openAnalytics(); }}>Analytics</a></li>
                     {!isAdminUser && (
                       <li><a className="dropdown-item" href="#" onClick={(e) => { e.preventDefault(); setShowCancelSubModal(true); }}>Settings</a></li>
                     )}
@@ -2505,6 +2566,83 @@ function Navbar({ onProfileSave }) {
                         </small>
                       )}
                     </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="modal-backdrop fade show"></div>
+        </>
+      )}
+
+      {/* Analytics Modal */}
+      {showAnalyticsModal && (
+        <>
+          <div className="modal fade show d-block" tabIndex="-1" role="dialog" aria-modal="true" aria-labelledby="analyticsTitle">
+            <div className="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title" id="analyticsTitle">Analytics</h5>
+                  <button type="button" className="btn-close" onClick={() => setShowAnalyticsModal(false)} aria-label="Close"></button>
+                </div>
+                <div className="modal-body">
+                  {analyticsLoading ? (
+                    <div className="d-flex justify-content-center align-items-center py-5">
+                      <div className="spinner-border spinner-primary" role="status">
+                        <span className="visually-hidden">Loading...</span>
+                      </div>
+                    </div>
+                  ) : analyticsError ? (
+                    <div className="alert alert-danger mb-0" role="alert">
+                      {analyticsError}
+                    </div>
+                  ) : (
+                    <>
+                      <div className="analytics-summary-grid">
+                        {analyticsSummaryItems.map((item) => (
+                          <div key={item.label} className="analytics-summary-tile">
+                            <div className="analytics-summary-value">
+                              {Number(item.value || 0).toLocaleString()}
+                            </div>
+                            <div className="analytics-summary-label">{item.label}</div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <hr className="my-3" />
+
+                      {analytics.viewers.length === 0 ? (
+                        <div className="text-muted text-center py-4">
+                          No profile views yet
+                        </div>
+                      ) : (
+                        <div className="analytics-viewers-list">
+                          {analytics.viewers.map((viewer, index) => {
+                            const keywordLabels = getAnalyticsKeywordLabels(viewer);
+
+                            return (
+                              <div key={viewer.id || `${viewer.viewerUserId}-${index}`}>
+                                <div className="analytics-viewer-row">
+                                  <div className="analytics-viewer-person">
+                                    <img
+                                      src={viewer.viewerProfileUrl || defaultProfile}
+                                      alt={viewer.viewerName}
+                                      className="analytics-viewer-avatar"
+                                    />
+                                    <span className="analytics-viewer-name">{viewer.viewerName}</span>
+                                  </div>
+                                  <div className="analytics-viewer-keywords">
+                                    {keywordLabels.length > 0 ? keywordLabels.join(", ") : "Direct profile view"}
+                                  </div>
+                                  <div className="analytics-viewer-count">+1</div>
+                                </div>
+                                {index < analytics.viewers.length - 1 && <hr className="analytics-viewer-divider" />}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               </div>

@@ -160,20 +160,8 @@ function formatNotificationTimestamp(value) {
   }).format(date);
 }
 
-function formatDrawInviteShareUrl(inviteLink) {
-  try {
-    const url = new URL(inviteLink);
-    return `${url.protocol}//${url.host}${url.pathname}${url.search}${url.hash}`;
-  } catch {
-    return inviteLink;
-  }
-}
-
-function buildDrawInviteShareMessage(inviteLink) {
-  return [
-    `What if someone exactly like you already exists 🤔? Find out on ${formatDrawInviteShareUrl(inviteLink)}`,
-    "(The sender 100% shared this just for the free Crunchyroll Mega Fan, ChatGPT Plus, Gemini Pro, and other accounts)",
-  ].join("\n\n");
+function buildDrawInviteShareMessage() {
+  return "What if someone exactly like you already exists 🤔? Find out on [https://letsfindpeople.com](https://letsfindpeople.com)";
 }
 
 async function copyTextToClipboard(text) {
@@ -1307,7 +1295,7 @@ function Navbar({ onProfileSave }) {
   const shareDrawInviteLink = async () => {
     if (!drawInviteLink) return;
 
-    const shareMessage = buildDrawInviteShareMessage(drawInviteLink);
+    const shareMessage = buildDrawInviteShareMessage();
     setDrawInviteShareNotice("");
 
     if (typeof navigator !== "undefined" && typeof navigator.share === "function") {

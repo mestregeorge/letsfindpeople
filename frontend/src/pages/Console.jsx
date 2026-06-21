@@ -32,6 +32,8 @@ const DIRECT_KEYS = [
   "other",
 ];
 
+const PRICING_DROPDOWN_EVENT = "lfp:open-pricing";
+
 const getAge = (birthday) => {
   const birth = new Date(birthday);
   const today = new Date();
@@ -79,6 +81,18 @@ function isDirectQuestionComplete(selected, skipped, key, selectedGender, countr
   }
 
   return (selected?.[key]?.length > 0) || !!skipped?.[key];
+}
+
+function formatResetTime(resetAt) {
+  return new Date(resetAt).toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
+function openPricingDropdown() {
+  window.dispatchEvent(new CustomEvent(PRICING_DROPDOWN_EVENT));
 }
 
 export default function Console({ currentUser }) {
@@ -247,8 +261,28 @@ export default function Console({ currentUser }) {
     consumeSearchAllowance()
       .then((allowance) => { if (allowance.resetAt) setFreeSearchesResetAt(allowance.resetAt); })
       .catch(() => {});
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoggedIn, hasUnlimitedSearches, freeSearchesRemaining, freeSearchesResetAt]);
+
+  useEffect(() => {
+    if (!isLoggedIn || hasUnlimitedSearches || freeSearchesRemaining > 0 || !freeSearchesResetAt) return undefined;
+
+    const resetTime = new Date(freeSearchesResetAt).getTime();
+    if (!Number.isFinite(resetTime)) return undefined;
+
+    const refreshFreeSearches = () => {
+      setFreeSearchesRemaining(3);
+      setFreeSearchesResetAt(null);
+    };
+
+    const msUntilReset = resetTime - Date.now();
+    if (msUntilReset <= 0) {
+      refreshFreeSearches();
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(refreshFreeSearches, msUntilReset);
+    return () => window.clearTimeout(timeoutId);
+  }, [freeSearchesRemaining, freeSearchesResetAt, hasUnlimitedSearches, isLoggedIn]);
 
   useEffect(() => {
     if (!shouldOfferDrawEvent) {
@@ -631,14 +665,28 @@ export default function Console({ currentUser }) {
                 ? freeSearchesResetAt
                   ? (() => {
                       const resetDate = new Date(freeSearchesResetAt);
-                      const timeStr = resetDate.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+                      const timeStr = formatResetTime(freeSearchesResetAt);
                       const today = new Date();
                       const tomorrow = new Date(today);
                       tomorrow.setDate(today.getDate() + 1);
                       const isToday = resetDate.toDateString() === today.toDateString();
                       const isTomorrow = resetDate.toDateString() === tomorrow.toDateString();
                       const dayLabel = isToday ? "today" : isTomorrow ? "tomorrow" : resetDate.toLocaleDateString(undefined, { weekday: "long" });
-                      return `*Your 3 free searches will reset ${dayLabel} at ${timeStr}.`;
+                      return (
+                        <>
+                          {`*Your 3 free searches will reset ${dayLabel} at ${timeStr}. `}
+                          <a
+                            href="#"
+                            className="console-pricing-link"
+                            onClick={(event) => {
+                              event.preventDefault();
+                              openPricingDropdown();
+                            }}
+                          >
+                            Get More Now
+                          </a>
+                        </>
+                      );
                     })()
                   : "*Your 3 free searches have been used up."
                 : `*You have ${freeSearchesRemaining} free ${freeSearchesRemaining === 1 ? "search" : "searches"} remaining`

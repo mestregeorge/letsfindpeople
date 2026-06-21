@@ -308,6 +308,7 @@ function Navbar({ onProfileSave }) {
   const loginDropdownToggleRef = useRef(null);
   const loginDropdownMenuRef = useRef(null);
   const pricingDropdownRef = useRef(null);
+  const pricingDropdownToggleRef = useRef(null);
   const pricingDropdownMenuRef = useRef(null);
   const notificationsDropdownRef = useRef(null);
   const notificationsDropdownMenuRef = useRef(null);
@@ -685,6 +686,18 @@ function Navbar({ onProfileSave }) {
       window.removeEventListener("resize", updatePricingDropdownOffset);
     };
   }, [session, savedProfile.subscriptionStatus]);
+
+  useEffect(() => {
+    const openPricingDropdown = () => {
+      if (!pricingDropdownMenuRef.current?.classList.contains("show")) {
+        pricingDropdownToggleRef.current?.click();
+      }
+      pricingDropdownToggleRef.current?.blur();
+    };
+
+    window.addEventListener("lfp:open-pricing", openPricingDropdown);
+    return () => window.removeEventListener("lfp:open-pricing", openPricingDropdown);
+  }, []);
 
   useEffect(() => {
     const dropdown = notificationsDropdownRef.current;
@@ -2142,7 +2155,14 @@ function Navbar({ onProfileSave }) {
               {/* Pricing Dropdown */}
               {showPricingNav && (
                 <div className="dropdown" style={{ position: "relative" }} ref={pricingDropdownRef}>
-                  <a className="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                  <a
+                    className="nav-link dropdown-toggle"
+                    href="#"
+                    role="button"
+                    data-bs-toggle="dropdown"
+                    aria-expanded="false"
+                    ref={pricingDropdownToggleRef}
+                  >
                     Pricing
                   </a>
                   <div
@@ -2151,7 +2171,7 @@ function Navbar({ onProfileSave }) {
                   >
                     <div className="row align-items-center">
                       <h5 className="title mb-2">Free Trial</h5>
-                      <p className="text mb-0">Access to <span style={{ textDecoration: "underline", textDecorationColor: "#7c3aed", textDecorationThickness: "2px", textUnderlineOffset: "2px" }}>3 free searches</span> that renew daily.</p>
+                      <p className="text mb-0">Access to <span>3 free searches</span> that renew daily.</p>
                     </div>
                     <div className="mb-3"></div>
                     <a
@@ -2166,7 +2186,7 @@ function Navbar({ onProfileSave }) {
 
                     <div className="row align-items-center">
                       <h5 className="title mb-2">Basic Plan</h5>
-                      <p className="text mb-0">Access to <span style={{ textDecoration: "underline", textDecorationColor: "#7c3aed", textDecorationThickness: "2px", textUnderlineOffset: "2px" }}>unlimited searches</span> and <span style={{ textDecoration: "underline", textDecorationColor: "#7c3aed", textDecorationThickness: "2px", textUnderlineOffset: "2px" }}>see who viewed your profile</span>.</p>
+                      <p className="text mb-0">Access to <span>unlimited searches</span> and <span>see who viewed your profile</span>.</p>
                     </div>
                     <div className="mb-3"></div>
                     {savedProfile.subscriptionStatus === "active" ? (

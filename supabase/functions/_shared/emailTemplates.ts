@@ -119,13 +119,13 @@ function buildLayout({
           <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="width:100%;max-width:640px;background:#ffffff;border-radius:8px;overflow:hidden;border:1px solid #E5E7EB;">
             <tr>
               <td style="background:${BRAND_PURPLE};background:linear-gradient(135deg,${BRAND_PURPLE} 0%,${BRAND_PURPLE_DARK} 100%);padding:30px 28px;text-align:center;">
-                <img src="${escapeHtml(logoUrl)}" alt="${BRAND_NAME}" width="152" style="display:inline-block;width:152px;max-width:70%;height:auto;border:0;" />
+                <img src="${escapeHtml(logoUrl)}" alt="${BRAND_NAME}" width="76" style="display:inline-block;width:76px;max-width:70%;height:auto;border:0;" />
               </td>
             </tr>
             <tr>
               <td style="padding:32px 28px 30px;">
                 ${coverHtml}
-                <h1 style="margin:0 0 16px;font-size:26px;line-height:1.25;color:${TEXT_COLOR};font-weight:800;">${safeHeading}</h1>
+                <h1 style="margin:0 0 16px;font-size:22px;line-height:1.25;color:${TEXT_COLOR};font-weight:800;">${safeHeading}</h1>
                 ${bodyHtml}
                 ${ctaHtml}
                 <p style="margin:26px 0 0;font-size:13px;line-height:1.5;color:${MUTED_COLOR};">You are receiving this because you use ${BRAND_NAME}.</p>
@@ -145,10 +145,10 @@ export function buildSignupEmail({ displayName }: { displayName?: string }): Ema
   const name = normalizeName(displayName);
 
   return buildLayout({
-    subject: `Welcome to ${BRAND_NAME}`,
-    preview: "Your LetsFindPeople account is ready.",
+    subject: `Welcome to ${BRAND_NAME}!`,
+    preview: "Set up your profile so you can start searching.",
     heading: `Welcome, ${name}!`,
-    body: "Thanks for joining LetsFindPeople. Your account is ready.\n\nSet up your profile so people can discover you by interests, places, and creative work.",
+    body: "Thanks for joining LetsFindPeople. Your account is ready. Set up your profile so you can start searching.",
     ctaLabel: "Set Up Profile",
     ctaUrl: siteUrl,
   });
@@ -159,10 +159,10 @@ export function buildProfileCompletedEmail({ displayName }: { displayName?: stri
   const name = normalizeName(displayName);
 
   return buildLayout({
-    subject: "Your LetsFindPeople profile is live",
-    preview: "Your profile is complete and ready to use.",
-    heading: "Your profile is set up",
-    body: `Nice work, ${name}. Your profile is complete and ready to help you find people with shared interests.\n\nYou can start searching now, and you can update your profile anytime from your account menu.`,
+    subject: "Your profile is live!",
+    preview: "You can now start searching by interests.",
+    heading: "Your Profile Is Set Up",
+    body: `Nice work, ${name}. Your profile is complete. You can now start searching.`,
     ctaLabel: "Start Searching",
     ctaUrl: siteUrl,
   });
@@ -181,10 +181,10 @@ export function buildDrawEventStartedEmail({
 
   return buildLayout({
     subject: `New giveaway: ${safeTitle}`,
-    preview: "A new LetsFindPeople giveaway just started.",
+    preview: "A new giveaway just started. Open the site's notifications to join.",
     heading: safeTitle,
-    body: String(body || "A new LetsFindPeople giveaway just started. Open the site's notifications to join in."),
-    ctaLabel: "Open Giveaway",
+    body: String(body || "A new giveaway just started. Open the site's notifications to join. Prizes range from money to premium subscriptions like Crunchyroll Mega Fan, ChatGPT Plus, NordVPN Premium, and much more!"),
+    ctaLabel: "Join Giveaway",
     ctaUrl: getSiteUrl(),
     coverUrl,
   });

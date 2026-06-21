@@ -161,7 +161,7 @@ function formatNotificationTimestamp(value) {
 }
 
 function buildDrawInviteShareMessage() {
-  return "What if someone exactly like you already exists 🤔? Find out on [https://letsfindpeople.com](https://letsfindpeople.com)";
+  return "What if someone exactly like you already exists 🤔? Find out on https://letsfindpeople.com";
 }
 
 async function copyTextToClipboard(text) {

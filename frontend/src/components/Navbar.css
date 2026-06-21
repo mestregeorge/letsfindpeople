@@ -176,16 +176,6 @@
   padding: 0.85rem;
 }
 
-.analytics-summary-tile-profile-views {
-  background: #6D28D9;
-  border-color: #6D28D9;
-}
-
-.analytics-summary-tile-profile-views .analytics-summary-value,
-.analytics-summary-tile-profile-views .analytics-summary-label {
-  color: #ffffff;
-}
-
 .analytics-summary-value {
   color: #212529;
   font-size: 1.5rem;
@@ -198,6 +188,14 @@
   font-size: 1rem;
   line-height: 1.5;
   margin-top: 0.35rem;
+}
+
+.analytics-upgrade-link,
+.analytics-upgrade-link:hover,
+.analytics-upgrade-link:focus,
+.analytics-upgrade-link:active {
+  color: #6D28D9;
+  text-decoration: underline;
 }
 
 .analytics-viewers-list {

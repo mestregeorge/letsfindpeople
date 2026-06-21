@@ -2103,10 +2103,17 @@ function Navbar({ onProfileSave }) {
   const showNotificationsNav = session && !isAdminUser;
   const chatBadgeLabel = unreadChatMessages > 99 ? "99+" : String(unreadChatMessages);
   const notificationBadgeLabel = unreadNotifications > 99 ? "99+" : String(unreadNotifications);
+  const hasProAnalyticsAccess =
+    isAdminUser ||
+    savedProfile.subscriptionStatus === "active" ||
+    savedProfile.subscriptionStatus === "canceling";
   const analyticsSummaryItems = [
     { label: "Total searches done", value: analytics.totalSearchesDone },
     { label: "Times you appeared in search", value: analytics.totalTimesSearched },
-    { label: "Profile views", value: analytics.totalProfileViews },
+    {
+      label: hasProAnalyticsAccess ? "Profile views (view below)" : "Profile views",
+      value: analytics.totalProfileViews,
+    },
   ];
   const getAnalyticsKeywordLabels = (viewer) => (
     viewer.keywordNames?.length
@@ -2610,10 +2617,7 @@ function Navbar({ onProfileSave }) {
                     <>
                       <div className="analytics-summary-grid">
                         {analyticsSummaryItems.map((item) => (
-                          <div
-                            key={item.label}
-                            className={`analytics-summary-tile ${item.label === "Profile views" ? "analytics-summary-tile-profile-views" : ""}`}
-                          >
+                          <div key={item.label} className="analytics-summary-tile">
                             <div className="analytics-summary-value">
                               {Number(item.value || 0).toLocaleString()}
                             </div>
@@ -2624,7 +2628,23 @@ function Navbar({ onProfileSave }) {
 
                       <hr className="my-3" />
 
-                      {analytics.viewers.length === 0 ? (
+                      {!hasProAnalyticsAccess ? (
+                        <div className="text-muted text-center py-4">
+                          Upgrade to the{" "}
+                          <a
+                            href="#"
+                            className="analytics-upgrade-link"
+                            onClick={(event) => {
+                              event.preventDefault();
+                              setShowAnalyticsModal(false);
+                              window.dispatchEvent(new CustomEvent("lfp:open-pricing"));
+                            }}
+                          >
+                            Pro Plan
+                          </a>{" "}
+                          to see who viewed your profile.
+                        </div>
+                      ) : analytics.viewers.length === 0 ? (
                         <div className="text-muted text-center py-4">
                           No profile views yet
                         </div>

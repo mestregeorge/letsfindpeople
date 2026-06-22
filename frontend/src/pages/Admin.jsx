@@ -69,6 +69,61 @@ const getPaginationPageNumbers = (currentPage, totalPages, maxVisiblePages) => {
   return pages;
 };
 
+const getRelatedRow = (value) => Array.isArray(value) ? value[0] : value;
+
+const getLogMetadata = (metadata) => (
+  metadata && typeof metadata === 'object' && !Array.isArray(metadata) ? metadata : {}
+);
+
+const formatList = (items) => (
+  (Array.isArray(items) ? items : [])
+    .map((item) => String(item ?? '').trim())
+    .filter(Boolean)
+    .join(', ')
+);
+
+const formatLogUser = (row) => {
+  const user = getRelatedRow(row.users);
+  const metadata = getLogMetadata(row.metadata);
+
+  if (row.id_user && (!user || user.is_deleted)) return 'Deleted Account';
+  return user?.email || metadata.targetEmail || 'Anonymous';
+};
+
+const formatLogAction = (row) => {
+  const action = getRelatedRow(row.actions);
+  const metadata = getLogMetadata(row.metadata);
+  const name = action?.name || metadata.action || metadata.actionName;
+
+  if (name) return String(name);
+  return row.id_action ? `Action #${row.id_action}` : 'Unknown Action';
+};
+
+const formatLogDetails = (row) => {
+  const metadata = getLogMetadata(row.metadata);
+  const keywordNames = formatList(metadata.keywordNames);
+  const keywordIds = formatList(metadata.keywordIds);
+  const reason = String(row.reason || '').trim();
+
+  if (keywordNames) return `Keywords: ${keywordNames}`;
+  if (keywordIds) return `Keyword IDs: ${keywordIds}`;
+  if (reason) return reason;
+  if (metadata.targetEmail) return `Target: ${metadata.targetEmail}`;
+  if (metadata.subject) return `Subject: ${metadata.subject}`;
+  if (metadata.title) return `Title: ${metadata.title}`;
+  if (metadata.newTitle || metadata.oldTitle) {
+    return [metadata.oldTitle, metadata.newTitle].filter(Boolean).join(' -> ');
+  }
+  if (metadata.keywordName) return `Keyword: ${metadata.keywordName}`;
+  if (metadata.newName || metadata.oldName) {
+    return [metadata.oldName, metadata.newName].filter(Boolean).join(' -> ');
+  }
+  if (metadata.drawEventId) return `Draw Event #${metadata.drawEventId}`;
+  if (metadata.notificationId) return `Notification #${metadata.notificationId}`;
+
+  return '';
+};
+
 function Admin() {
   const [page, setPage] = useState(0);
   const [selectedYear, setSelectedYear] = useState(() => getCurrentDashboardYear());
@@ -534,7 +589,7 @@ function Admin() {
       let countQuery = supabase.from('logs').select('*', { count: 'exact', head: true });
       let rowsQuery  = supabase
         .from('logs')
-        .select('id_log, id_user, id_action, status, reason, ip, metadata, created_at, users(email), actions(name)');
+        .select('id_log, id_user, id_action, status, reason, ip, metadata, created_at, users(email, is_deleted), actions(name)');
       if (actionId) {
         countQuery = countQuery.eq('id_action', actionId);
         rowsQuery  = rowsQuery.eq('id_action', actionId);
@@ -553,12 +608,12 @@ function Admin() {
       if (rowsErr) throw new Error(rowsErr.message);
       const logs = (rows || []).map((r) => ({
         id:          r.id_log,
-        user:        r.users?.email || r.metadata?.targetEmail || 'Anonymous',
+        user:        formatLogUser(r),
         ip:          r.ip || '-',
-        action:      r.actions?.name || String(r.id_action),
+        action:      formatLogAction(r),
         status:      r.status,
         statusColor: r.status === 'Success' ? 'green' : r.status === 'Error' ? 'red' : 'orange',
-        reason:      r.reason || r.metadata?.targetEmail || '',
+        details:     formatLogDetails(r),
         date:        new Date(r.created_at).toLocaleString('en-GB', {
           day: '2-digit', month: '2-digit', year: 'numeric',
           hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true,
@@ -1738,7 +1793,7 @@ function Admin() {
                       <td>{log.ip}</td>
                       <td>{log.action}</td>
                       <td style={{ color: log.statusColor }}>{log.status}</td>
-                      <td>{log.reason || '-'}</td>
+                      <td>{log.details || '-'}</td>
                       <td>{log.date}</td>
                     </tr>
                   ))
@@ -1820,11 +1875,11 @@ function Admin() {
             <div className="alert alert-danger">Failed to load draw events: {drawEventsError}</div>
           ) : (
           <div className="table-responsive">
-            <table className="table table-striped align-middle text-center">
+            <table className="table table-striped align-middle text-center admin-notifications-table">
               <thead>
                 <tr>
                   <th scope="col">Draw Events</th>
-                  <th scope="col" className="text-end">Actions</th>
+                  <th scope="col">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -1833,11 +1888,11 @@ function Admin() {
                 ) : (
                   drawEvents.map((event) => (
                     <tr key={event.id}>
-                      <td className="text-start">
+                      <td>
                         {event.title}
                       </td>
-                      <td className="text-end">
-                        <div className="d-flex flex-wrap justify-content-end gap-2">
+                      <td>
+                        <div className="d-flex flex-wrap justify-content-center gap-2">
                           <button
                             type="button"
                             className="btn btn-secondary btn-sm"

@@ -42,6 +42,18 @@ function isCacheStale(entry) {
   return Date.now() - entry.savedAt > CACHE_TTL_MS;
 }
 
+function isMissingSearchLogDetailsRpcError(error) {
+  const message = [
+    error?.code,
+    error?.message,
+    error?.details,
+    error?.hint,
+  ].filter(Boolean).join(" ").toLowerCase();
+
+  return message.includes("update_latest_search_log_details") ||
+    message.includes("schema cache");
+}
+
 // ── public API ────────────────────────────────────────────────────────────────
 
 function mapPublicUser(u) {
@@ -167,7 +179,19 @@ export async function searchUsers(keywordIds) {
   if (error) throw new Error(error.message);
 
   // Note: the search_users_by_keywords RPC already writes the SEARCH log
-  // server-side. Do not write it again here to avoid double-logging.
+  // server-side. Fill in the selected keywords on that row when the helper
+  // migration is available, without writing a second SEARCH log.
+  Promise.resolve(supabase.rpc("update_latest_search_log_details", {
+    p_keyword_ids: ids,
+  })).then(({ error: detailsError }) => {
+    if (detailsError && !isMissingSearchLogDetailsRpcError(detailsError)) {
+      console.warn("Failed to update search log details:", detailsError.message);
+    }
+  }).catch((detailsError) => {
+    if (!isMissingSearchLogDetailsRpcError(detailsError)) {
+      console.warn("Failed to update search log details:", detailsError.message);
+    }
+  });
 
   const users = (data || []).map(mapPublicUser);
 

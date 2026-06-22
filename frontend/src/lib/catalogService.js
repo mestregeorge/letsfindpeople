@@ -72,6 +72,7 @@ function mapPublicUser(u) {
     },
     profilePicture: u.profile_url || null,
     keywordIds:     u.all_keyword_ids || [],
+    matchCount:     Number(u.match_count || 0),
   };
 }
 
@@ -162,9 +163,9 @@ export async function getCatalog() {
 }
 
 /**
- * Search for users who have ALL of the supplied keyword IDs.
+ * Search for users who have at least one of the supplied keyword IDs.
  * Delegates to the search_users_by_keywords Postgres RPC which runs as
- * SECURITY DEFINER and handles the set-intersection logic server-side.
+ * SECURITY DEFINER and ranks results by keyword overlap server-side.
  * @param {number[]} keywordIds
  * @param {string} [reason]
  * @returns {Promise<{ users: object[] }>}

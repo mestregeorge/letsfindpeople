@@ -32,6 +32,14 @@ const DIRECT_KEYS = [
   "other",
 ];
 
+function countMatchingKeywords(keywordIds, selectedKeywordIds) {
+  const keywords = new Set((keywordIds || []).map(Number));
+  return selectedKeywordIds.reduce(
+    (count, id) => count + (keywords.has(Number(id)) ? 1 : 0),
+    0
+  );
+}
+
 const PRICING_DROPDOWN_EVENT = "lfp:open-pricing";
 
 const getAge = (birthday) => {
@@ -378,11 +386,13 @@ export default function Console({ currentUser }) {
     const { birthDay, birthMonth, birthYear } = currentUser;
     const birth = new Date(Number(birthYear), Number(birthMonth) - 1, Number(birthDay));
     const age = Math.floor((Date.now() - birth.getTime()) / (1000 * 60 * 60 * 24 * 365.25));
-    // Navbar stores names in `selected`; resolve them to IDs
-    const keywordIds = [...new Set(Object.values(currentUser.selected || {})
-      .flat()
-      .map((name) => nameToIdMap[name])
-      .filter((id) => id != null))];
+    // Prefer persisted IDs because keyword labels can repeat across selectors.
+    const keywordIds = Array.isArray(currentUser.keywordIds)
+      ? currentUser.keywordIds
+      : [...new Set(Object.values(currentUser.selected || {})
+        .flat()
+        .map((name) => nameToIdMap[name])
+        .filter((id) => id != null))];
     return {
       id: "current",
       name: `${currentUser.firstName} ${currentUser.lastName}`,
@@ -401,7 +411,7 @@ export default function Console({ currentUser }) {
     };
   }, [currentUser, nameToIdMap]);
 
-  // Run search: call backend with selected keyword IDs, then prepend current user if matching
+  // Run search: call backend with selected keyword IDs, then rank by overlap
   const runSearch = async () => {
     if (focusedUserId) {
       navigate("/", { replace: true });
@@ -467,15 +477,17 @@ export default function Console({ currentUser }) {
       const filtered = session?.user?.id
         ? users.filter(u => u.supabaseUid !== session.user.id)
         : users;
-      // Prepend current user if they match all selected keywords
-      const results = [...filtered];
-      if (
-        currentUserFormatted &&
-        selectedKeywords.every((id) => (currentUserFormatted.keywordIds || []).includes(id))
-      ) {
-        results.unshift(currentUserFormatted);
+      const results = filtered.map((user) => ({
+        ...user,
+        matchCount: user.matchCount || countMatchingKeywords(user.keywordIds, selectedKeywords),
+      }));
+      const currentUserMatchCount = currentUserFormatted
+        ? countMatchingKeywords(currentUserFormatted.keywordIds, selectedKeywords)
+        : 0;
+      if (currentUserFormatted && currentUserMatchCount > 0) {
+        results.push({ ...currentUserFormatted, matchCount: currentUserMatchCount });
       }
-      setSearchResults(results);
+      setSearchResults(results.sort((a, b) => (b.matchCount || 0) - (a.matchCount || 0)));
     } catch (err) {
       setSearchError(err.message);
       setSearchResults([]);

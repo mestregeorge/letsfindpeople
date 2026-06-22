@@ -548,6 +548,7 @@ function Navbar({ onProfileSave }) {
     snapchatUsername: "", showSnapchat: true,
     discordUsername: "", showDiscord: true,
     profileImagePreview: null, answers: {}, selected: {}, skipped: {},
+    keywordIds: [],
     subscriptionStatus: "free",
     freeSearchesRemaining: 3,
     idType: 1,
@@ -894,6 +895,7 @@ function Navbar({ onProfileSave }) {
           discordUsername: profile.discord, showDiscord: showDiscordDefault,
           profileImagePreview: profile.profileUrl,
           answers: newAnswers, selected: newSelected, skipped: newSkipped,
+          keywordIds,
           subscriptionStatus: profile.subscriptionStatus || "free",
           freeSearchesRemaining: profile.freeSearchesRemaining ?? 3,
           freeSearchesResetAt: profile.freeSearchesResetAt || null,
@@ -1953,6 +1955,7 @@ function Navbar({ onProfileSave }) {
           snapchatUsername: "", showSnapchat: true,
           discordUsername: "", showDiscord: true,
           profileImagePreview: null, answers: {}, selected: {}, skipped: {},
+          keywordIds: [],
           subscriptionStatus: "free", freeSearchesRemaining: 0, idType: 1,
         };
         setSavedProfile(blank);
@@ -1999,6 +2002,29 @@ function Navbar({ onProfileSave }) {
       }
     }
 
+    const selectorItems = {
+      visualArt: visualArtItems, digitalArt: digitalArtItems,
+      musicGenres: musicGenreItems, musicArtists: musicArtistItems,
+      musicSoft: musicSoftItems, instruments: instrumentItems,
+      performing: performItems, writing: writingItems,
+      movies: movieItems, tvShows: tvShowItems, anime: animeItems,
+      games: gamingItems, memes: memeItems, apps: appItems,
+      devices: deviceItems, designSoft: designSoftItems,
+      progLang: progLangItems, ai: aiItems, subjects: subjectItems,
+      careers: careerItems, personality: personalityItems, hobbies: hobbyItems,
+      sexuality: sexualityItems, fitness: fitnessItems, sports: sportsItems,
+      outdoor: outdoorItems, food: foodItems, places: placeItems,
+      animals: animalItems, vehicles: vehicleItems, roleModels: roleModelItems,
+      other: otherItems,
+    };
+    const keywordIds = Object.entries(sanitizedSelected)
+      .flatMap(([key, names]) => {
+        const items = selectorItems[key] || [];
+        return (names || [])
+          .map(name => items.find(item => item.name === name)?.id)
+          .filter(id => id != null);
+      });
+
     const profile = {
       firstName, lastName,
       birthDay: formatBirthDatePart(birthDay),
@@ -2013,6 +2039,7 @@ function Navbar({ onProfileSave }) {
       answers: sanitizedAnswers,
       selected: sanitizedSelected,
       skipped: sanitizedSkipped,
+      keywordIds,
       subscriptionStatus: savedProfile.subscriptionStatus,
       freeSearchesRemaining: savedProfile.freeSearchesRemaining,
       idType: savedProfile.idType,
@@ -2027,31 +2054,6 @@ function Navbar({ onProfileSave }) {
     // Persist to DB if logged in
     if (session?.user) {
       try {
-        // Resolve keyword names -> IDs inside each selector so duplicate labels
-        // like "Other" keep the correct subcategory identity.
-        const selectorItems = {
-          visualArt: visualArtItems, digitalArt: digitalArtItems,
-          musicGenres: musicGenreItems, musicArtists: musicArtistItems,
-          musicSoft: musicSoftItems, instruments: instrumentItems,
-          performing: performItems, writing: writingItems,
-          movies: movieItems, tvShows: tvShowItems, anime: animeItems,
-          games: gamingItems, memes: memeItems, apps: appItems,
-          devices: deviceItems, designSoft: designSoftItems,
-          progLang: progLangItems, ai: aiItems, subjects: subjectItems,
-          careers: careerItems, personality: personalityItems, hobbies: hobbyItems,
-          sexuality: sexualityItems, fitness: fitnessItems, sports: sportsItems,
-          outdoor: outdoorItems, food: foodItems, places: placeItems,
-          animals: animalItems, vehicles: vehicleItems, roleModels: roleModelItems,
-          other: otherItems,
-        };
-        const keywordIds = Object.entries(sanitizedSelected)
-          .flatMap(([key, names]) => {
-            const items = selectorItems[key] || [];
-            return (names || [])
-              .map(name => items.find(item => item.name === name)?.id)
-              .filter(id => id != null);
-          });
-
         await updateUserProfile(
           session.user.id,
           {

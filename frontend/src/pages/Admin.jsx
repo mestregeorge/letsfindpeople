@@ -105,7 +105,7 @@ const formatLogDetails = (row) => {
   const keywordIds = formatList(metadata.keywordIds);
   const reason = String(row.reason || '').trim();
 
-  if (keywordNames) return `Keywords: ${keywordNames}`;
+  if (keywordNames) return keywordNames;
   if (keywordIds) return `Keyword IDs: ${keywordIds}`;
   if (reason) return reason;
   if (metadata.targetEmail) return metadata.targetEmail;
